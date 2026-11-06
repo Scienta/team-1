@@ -56,6 +56,7 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
 | talks | claimed (base, tick 0) | 0 | Same; `examples/talks.hurl` green |
 | ratings | claimed (base, tick 0) | 0 | Same; `examples/ratings.hurl` green |
 | co-speakers | claimed | 67 | Implementation `6319fc6` with `CoSpeakersTest` (6 tests, incl. concurrent adds) and `examples/co-speakers.hurl`; the harness's checks hadn't yet run against it. *(Claimer: add what else you checked.)* Checks 1 and 2 were FAULTY from tick 68, see section 4. |
+| acceptance | claimed | 140 | PR #5 merged as `fb2e37f`, `/health` on that SHA; `./mvnw package` 85 tests green; `examples/*.hurl` green on TEAM_URL (84 requests); `black-box` Vitest workflow green on the PR; no 5xx in the logs since the deploy; all other claimed checks OK. Spec PO confirmed (4 answers). Checks 3 and 5 FAULTY from tick 141/142, see section 4. |
 
 Score at workflow setup (tick ~2): total 12, all base checks OK, service not down.
 
@@ -77,6 +78,19 @@ Why our review missed it: the feature request gives no status codes, so we picke
 then pinned our picks in `CoSpeakersTest` and the Hurl example, which then could only confirm our own
 guesses. And the claim came before any harness traffic had been checked against the implementation:
 the request logs already showed the harness exercising both cases before the claim.
+
+**acceptance, ticks 141–142: repeating a final decision.** Claimed at tick 140; checks 3 and 5 were
+FAULTY on `PUT /talks/{id}/status`. check-3 accepted a talk and then accepted it again; check-5
+rejected a talk, was refused twice when accepting it (409, fine), then rejected it again. We answered
+both repeats with 200 ("idempotent", decision D7). The harness wants them refused: "once a talk is
+accepted or rejected, the committee's decision is final". Now 409; waitlisting a waitlisted talk
+stays 200 (D6).
+
+Why our review missed it: D7 came from a product owner answer (relayed: "idempotent"), so every
+layer (spec, `AcceptanceTest`, `examples/acceptance.hurl`, the Vitest suite) pinned the 200, and the
+reviewer judged against the spec. The feature request's own words said "final". Lesson: when a PO
+answer loosens a rule the request states, keep the request's wording, or flag it as the riskiest
+decision before the claim.
 
 ## 5. Reusable artifacts
 

@@ -1,6 +1,7 @@
 package no.scienta.cfp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -13,6 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Acceptance rules that the HTTP API can't reach: no endpoint removes ratings, so an accepted talk with fewer than two
@@ -20,9 +23,9 @@ import org.junit.jupiter.api.Test;
  */
 class AcceptanceServiceTest {
 
-    // D7: accepting an already accepted talk is 200, unchanged, with no ratings check
+    // D7: accepting an already accepted talk is 409 because the decision is final, not because of its ratings
     @Test
-    void d7_acceptingAnAcceptedTalkAgainSkipsTheRatingsCheck() {
+    void d7_acceptingAnAcceptedTalkAgainIsRefusedAsFinal() {
         TalkDao talkDao = mock(TalkDao.class);
         RatingDao ratingDao = mock(RatingDao.class);
         CoSpeakerDao coSpeakerDao = mock(CoSpeakerDao.class);
@@ -41,10 +44,11 @@ class AcceptanceServiceTest {
         when(ratingDao.stats(1L)).thenReturn(noRatings);
         when(coSpeakerDao.findByTalk(1L)).thenReturn(Collections.emptyList());
 
-        TalkDto result = service.decide(1L, "{\"status\":\"ACCEPTED\"}");
+        ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> service.decide(1L, "{\"status\":\"ACCEPTED\"}"));
 
-        assertEquals("ACCEPTED", result.status);
-        assertEquals(0, result.ratingCount);
+        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals("a ACCEPTED talk can't be ACCEPTED", e.getReason());
         verify(talkDao, never()).updateStatusIf(anyLong(), anyString(), anyString());
     }
 }
