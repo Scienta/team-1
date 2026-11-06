@@ -44,6 +44,9 @@ it does today, formats included"), plus the deploy contract:
   the URLs without a slash (speakers spec; `SpeakersTest.theLegacyTrailingSlashUrlsWork`).
 - R12 Error bodies keep Boot's shape `{timestamp, status, error, message, path}` with `message` filled in
   (`server.error.include-message=always`), not RFC 9457 problem details.
+- R12a **PO confirmed (2026-11-06): error bodies must be exactly the same as on 2.7**, including the
+  framework-written `message` texts (type conversion, malformed JSON, 404/405/415) and the order of
+  properties and items in `@Valid` `errors`. The 2.7 responses in the D12 before-run are the reference.
 - R13 The deploy contract holds: port 8080, `GET /health` exactly `{"status":"ok","version":"<GIT_SHA>"}` /
   503 `{"status":"db-unavailable",...}` within 5 s (`HealthTest`), `PG*` variables, `PGSSLMODE=require` in
   the image, `--build-arg GIT_SHA`, `linux/amd64`, pool of 5.
@@ -92,6 +95,7 @@ No new or changed endpoints. New or changed fields in existing responses: none (
 | D7 | JSON comments in request bodies | Keep allowed | Today's behaviour ("the mobile client depends on some of these"); no reason to change |
 | D8 | Property order in `Talk` JSON | Keep declaration order (`id, title, format, ...`); disable `MapperFeature.SORT_PROPERTIES_ALPHABETICALLY` if Jackson 3 sorts | Jackson 3 sorts properties alphabetically by default; order isn't semantic, but "exactly as it does today" is cheap to keep |
 | D9 | Stricter Jackson 3 defaults (trailing tokens after the JSON value, null into primitives) | Accept as long as R9/R10 hold; our forms use boxed types | Only affects garbage input; would be `400` either way |
+| D9a | Framework-written error texts (R12a) | **Superseded by the PO:** reproduce the 2.7 bodies byte for byte; any case that provably can't be matched is listed in `evidence.md` for a person to take back to the PO | PO answer 2026-11-06: "it needs to be exactly the same" |
 | D10 | Unknown fields (R10) | Must stay ignored; if Boot 4's mapper fails on them, set `spring.jackson.deserialization.fail-on-unknown-properties=false` | `TalksTest` pins it; the harness posted `durationMinutes` before |
 | D11 | `/admin/talks.csv` date (`Utils.norwegianDate`, CLDR `MEDIUM` for `nb_NO`) | Compare before/after; if JDK 25's CLDR renders it differently from `4. nov. 2026`, switch to an explicit pattern | Not in a base spec, but "nothing else changes"; locale data does change between JDK 11 and 25 |
 | D12 | Proof that nothing else changed | (1) `./mvnw package` green on Java 25 with the full existing suite, unchanged except for imports/class names above; (2) `examples/run.sh` green locally; (3) before/after diff: run the same request script (every base endpoint, an unrated and a rated talk, each error case of R9/R10/R11, `/health`, `/actuator/info`, `/admin/*`) against the 2.7 jar and the 4.x jar, normalise ids/timestamps, diff bodies and status codes; only `/actuator/info` values may differ; (4) after deploy, `/actuator/info` on `TEAM_URL` shows 4.1.2 / 7.0.10 / 25.x and the harness feedback for base features stays green | Tests pin rules, the diff catches what tests don't pin |
