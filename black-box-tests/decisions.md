@@ -31,5 +31,18 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Acceptance: withdraw a `REJECTED` or `WITHDRAWN` talk (by the main speaker) | `409` |
 | Acceptance: order of checks | `404` talk, then `400` body, then `403` who, then `409` state/ratings |
 | Acceptance: withdrawn and rejected talks still count towards the 3-talk limit | 4th talk `409` (PO confirmed) |
+| Scheduling: unknown / wrong-case room or slot | `404` |
+| Scheduling: `GET` or `DELETE` empty cell | `404` |
+| Scheduling: `PUT` body missing / `talkId` missing, null, or not an integer | `400` |
+| Scheduling: unknown `talkId` | `404` |
+| Scheduling: talk not `ACCEPTED` | `409` |
+| Scheduling: workshop outside `S4` | `409` |
+| Scheduling: cell occupied by another talk | `409` |
+| Scheduling: talk already elsewhere on the programme | `409` (DELETE first) |
+| Scheduling: same talk into the same cell again | `200`, unchanged (idempotent) |
+| Scheduling: speaker or co-speaker already in that slot (any room) | `409` |
+| Scheduling: successful `DELETE` | `200` with removed `Entry` (`room`, `slot`, `start`, `end`, `talkId`) |
+| Scheduling: order of `PUT` checks | `404` room/slot → `400` body → `404` talk → `409` status → fit → already-elsewhere → occupied → speaker clash |
+| Scheduling: withdraw / late co-speakers after place | programme `Entry` stays until `DELETE` |
 
-Trailing slash: `POST /speakers/` and `GET /speakers/{id}/` work like the slash-free forms.
+Trailing slash: `POST /speakers/`, `GET /speakers/{id}/`, and `/programme/{room}/{slot}/` work like the slash-free forms.

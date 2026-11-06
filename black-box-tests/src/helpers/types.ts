@@ -37,3 +37,23 @@ export type Health = {
   status: string;
   version: string;
 };
+
+export type Room = "R1" | "R2" | "R3";
+export type Slot = "S1" | "S2" | "S3" | "S4" | "S5";
+
+export type ProgrammeEntry = {
+  room: Room;
+  slot: Slot;
+  start: string;
+  end: string;
+  talkId: number;
+};
+
+/** Fixed venue times from specs/scheduling (R1). */
+export const SLOT_TIMES: Record<Slot, { start: string; end: string }> = {
+  S1: { start: "09:00", end: "10:00" },
+  S2: { start: "10:15", end: "11:15" },
+  S3: { start: "11:30", end: "12:30" },
+  S4: { start: "13:30", end: "15:30" },
+  S5: { start: "15:45", end: "16:45" },
+};

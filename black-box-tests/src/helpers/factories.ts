@@ -1,7 +1,17 @@
 import { expectJson, expectStatus } from "./expect.js";
 import { del, get, post, put } from "./http.js";
 import { uniqueEmail, uniqueName, uniqueReviewerId } from "./ids.js";
-import type { Decision, Rating, Speaker, Talk, TalkFormat, TalkLevel } from "./types.js";
+import type {
+  Decision,
+  ProgrammeEntry,
+  Rating,
+  Room,
+  Slot,
+  Speaker,
+  Talk,
+  TalkFormat,
+  TalkLevel,
+} from "./types.js";
 
 export type NewSpeakerInput = {
   name?: string;
@@ -118,11 +128,66 @@ export async function withdrawTalkRaw(talkId: number, body?: unknown) {
 }
 
 /** A talk rated by two different reviewers, so it can be accepted (acceptance R3). */
-export async function createAcceptableTalk(speakerId: number): Promise<Talk> {
-  const talk = await createTalk({ speakerId });
+export async function createAcceptableTalk(
+  speakerId: number,
+  input: Omit<NewTalkInput, "speakerId"> = {},
+): Promise<Talk> {
+  const talk = await createTalk({ ...input, speakerId });
   await rateTalk(talk.id, 4);
   await rateTalk(talk.id, 5);
   return getTalk(talk.id);
+}
+
+/** Acceptable talk already decided ACCEPTED (scheduling prerequisite). */
+export async function createAcceptedTalk(
+  speakerId: number,
+  input: Omit<NewTalkInput, "speakerId"> = {},
+): Promise<Talk> {
+  const talk = await createAcceptableTalk(speakerId, input);
+  return decideTalk(talk.id, "ACCEPTED");
+}
+
+function programmePath(room: string, slot: string, trailingSlash = false): string {
+  return `/programme/${room}/${slot}${trailingSlash ? "/" : ""}`;
+}
+
+/** Best-effort clear so black-box tests can reuse fixed venue cells. */
+export async function clearProgrammeCell(room: Room | string, slot: Slot | string): Promise<void> {
+  await del(programmePath(room, slot));
+}
+
+export async function putProgramme(
+  room: Room | string,
+  slot: Slot | string,
+  talkId: number,
+): Promise<ProgrammeEntry> {
+  return expectJson(
+    await put<ProgrammeEntry>(programmePath(room, slot), { talkId }),
+    200,
+  );
+}
+
+export async function getProgramme(room: Room | string, slot: Slot | string): Promise<ProgrammeEntry> {
+  return expectJson(await get<ProgrammeEntry>(programmePath(room, slot)), 200);
+}
+
+export async function deleteProgramme(
+  room: Room | string,
+  slot: Slot | string,
+): Promise<ProgrammeEntry> {
+  return expectJson(await del<ProgrammeEntry>(programmePath(room, slot)), 200);
+}
+
+export async function putProgrammeRaw(room: string, slot: string, body?: unknown, trailingSlash = false) {
+  return put<ProgrammeEntry>(programmePath(room, slot, trailingSlash), body);
+}
+
+export async function getProgrammeRaw(room: string, slot: string, trailingSlash = false) {
+  return get<ProgrammeEntry>(programmePath(room, slot, trailingSlash));
+}
+
+export async function deleteProgrammeRaw(room: string, slot: string, trailingSlash = false) {
+  return del<ProgrammeEntry>(programmePath(room, slot, trailingSlash));
 }
 
 export { expectStatus };
