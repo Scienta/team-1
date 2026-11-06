@@ -19,15 +19,17 @@ From harness request to claim we follow `workflow/spec-to-claim.md`:
 1. Refresh the spec into `workflow/specs/<slug>.md`
 2. Write status/edge decisions in `workflow/specs/<slug>-decisions.md` (template: `workflow/templates/decisions.md`)
 3. Implement + unit tests + `examples/<slug>.hurl`
-4. Human review with `workflow/review-checklist.md`
-5. Deploy via push to `main`, verify feedback/logs, then a person claims
+4. Review/extend `black-box-tests/` (Vitest) whenever the HTTP API changes — rule in `.claude/rules/black-box-api.md`
+5. Human review with `workflow/review-checklist.md`
+6. Deploy via push to `main`, verify feedback/logs, then a person claims
 
-Agent instructions live in `.claude/rules/team-workflow.md` (root `CLAUDE.md` only imports organisers' `AGENTS.md`).
+Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.claude/rules/` (including black-box API coverage).
 
 ## 2. How we reviewed agent output
 
 - Humans run `workflow/review-checklist.md` against the harness request plus our decisions file
-- Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL, harness `/feedback` and timeline for FAULTY checks
+- Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL,
+  Vitest black-box on PRs (`.github/workflows/black-box.yml`), harness `/feedback` and timeline for FAULTY checks
 - Deploy workflow must stay green (`/health` with new `GIT_SHA`)
 - Test review against the base specs, rule by rule, while all harness checks were green: ratings had
   no tests at all (`RatingsTest` is new), and `SpeakersTest`/`TalksTest` now cover their specs; a
@@ -41,6 +43,10 @@ Agent instructions live in `.claude/rules/team-workflow.md` (root `CLAUDE.md` on
   - `POST /speakers` took any non-blank string as an email. Now checked with `Utils.isValidEmail`;
     before shipping we replayed the harness's 901 logged registrations: every email it had accepted
     still passes.
+- Added a separate Vitest black-box suite (`black-box-tests/`) for deep HTTP coverage of health,
+  speakers, talks, ratings, and co-speakers (including the harness-aligned 400/404 co-speaker edges).
+  Hurl remains smoke; Vitest is the deep gate. Documented in root README and `black-box-tests/README.md`.
+  Prefer `CFP_BASE_URL` so Cursor's `BASE_URL=/` does not silently retarget tests.
 
 ## 3. Claim log
 
@@ -74,7 +80,8 @@ the request logs already showed the harness exercising both cases before the cla
 
 ## 5. Reusable artifacts
 
-- `.claude/rules/team-workflow.md` — agent loop and hard constraints
+- `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage
+- `black-box-tests/` — Vitest HTTP suite + `decisions.md` + PR workflow `black-box.yml`
 - `workflow/spec-to-claim.md` — end-to-end process
 - `workflow/review-checklist.md` — review rubric
 - `workflow/templates/decisions.md` — turn a feature request into a real spec
@@ -82,4 +89,7 @@ the request logs already showed the harness exercising both cases before the cla
 
 ## 6. One thing we'd do differently
 
-Add request logging in the first deploy, before the next drip claim — without it harness traffic is nearly invisible in Cockpit logs, so FAULTY timelines become the only signal.
+Stand up black-box Vitest (and the PR workflow) earlier, before the next drip claim — Hurl alone is
+too thin, and pinning our own status-code guesses only in Java/Hurl made the co-speakers FAULTY
+checks a surprise. Also: add request logging in the first deploy so harness traffic shows in Cockpit
+before FAULTY timelines are the only signal.

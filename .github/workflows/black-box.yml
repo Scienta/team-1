@@ -1,0 +1,90 @@
+# Black-box Vitest suite against a job-local Postgres + jar.
+# Mark this check required in branch protection; it is not wired into deploy.yml.
+name: black-box
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  black-box:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cfp
+          POSTGRES_USER: cfp
+          POSTGRES_PASSWORD: cfp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cfp -d cfp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: cfp
+      PGUSER: cfp
+      PGPASSWORD: cfp
+      PGSSLMODE: disable
+      GIT_SHA: ${{ github.sha }}
+      CFP_BASE_URL: http://localhost:8080
+      BASE_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: black-box-tests/package-lock.json
+
+      - name: Build jar
+        run: ./mvnw -B -DskipTests package
+
+      - name: Install black-box deps
+        working-directory: black-box-tests
+        run: npm ci
+
+      - name: Start app
+        run: |
+          set -euo pipefail
+          java -jar target/cfp.jar > /tmp/cfp.log 2>&1 &
+          echo $! > /tmp/cfp.pid
+          for i in $(seq 1 60); do
+            body="$(curl -sS --max-time 2 "$CFP_BASE_URL/health" || true)"
+            if printf '%s' "$body" | grep -q '"status":"ok"'; then
+              echo "healthy: $body"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "=== cfp.log ==="
+          cat /tmp/cfp.log || true
+          exit 1
+
+      - name: Run black-box tests
+        working-directory: black-box-tests
+        run: npm run test:ci
+
+      - name: Stop app
+        if: always()
+        run: |
+          if [ -f /tmp/cfp.pid ]; then
+            kill "$(cat /tmp/cfp.pid)" || true
+          fi

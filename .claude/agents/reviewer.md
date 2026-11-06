@@ -29,6 +29,8 @@ spec, the diff and the test run. Never edit files.
 5. **Data and deploy:** schema changes are `IF NOT EXISTS`, appended at the bottom, and safe on
    existing production rows; `/health`, port 8080 and the `PG*` config are untouched; no secrets.
 6. **Black box:** `examples/<slug>.hurl` exists and asserts the decision table's status codes.
+   If the API surface changed, `black-box-tests/` was reviewed and coverage added or adjusted
+   (see `.claude/rules/black-box-api.md`); flag gaps as findings.
 
 ## Report
 
