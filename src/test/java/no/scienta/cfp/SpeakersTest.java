@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,9 +54,9 @@ class SpeakersTest {
         JsonNode created = Api.body(api.post("/speakers",
                 "{\"name\":\"Ada Lovelace\",\"email\":\"" + email + "\",\"bio\":\"Wrote the first program.\"}"), 201);
         assertTrue(created.get("id").canConvertToLong(), created.toString());
-        assertEquals("Ada Lovelace", created.get("name").asText());
-        assertEquals(email, created.get("email").asText());
-        assertEquals("Wrote the first program.", created.get("bio").asText());
+        assertEquals("Ada Lovelace", created.get("name").asString());
+        assertEquals(email, created.get("email").asString());
+        assertEquals("Wrote the first program.", created.get("bio").asString());
 
         JsonNode read = Api.body(api.get("/speakers/" + created.get("id").asLong()), 200);
         assertEquals(created, read);
