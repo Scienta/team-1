@@ -1,3 +1,4 @@
+import { expect } from "vitest";
 import { expectJson, expectStatus } from "./expect.js";
 import { del, get, post, put } from "./http.js";
 import { uniqueEmail, uniqueName, uniqueReviewerId } from "./ids.js";
@@ -204,11 +205,10 @@ export async function getProgramme(room: Room | string, slot: Slot | string): Pr
   return expectJson(await get<ProgrammeEntry>(programmePath(room, slot)), 200);
 }
 
-export async function deleteProgramme(
-  room: Room | string,
-  slot: Slot | string,
-): Promise<ProgrammeEntry> {
-  return expectJson(await del<ProgrammeEntry>(programmePath(room, slot)), 200);
+/** D12: a DELETE that took a talk out is 204 with no body (harness checks 2-6 failed on 200 + Entry). */
+export async function deleteProgramme(room: Room | string, slot: Slot | string): Promise<void> {
+  const res = expectStatus(await del(programmePath(room, slot)), 204);
+  expect(res.text).toBe("");
 }
 
 export async function putProgrammeRaw(room: string, slot: string, body?: unknown, trailingSlash = false) {

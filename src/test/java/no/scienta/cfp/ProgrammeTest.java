@@ -82,6 +82,12 @@ class ProgrammeTest {
         return Api.body(res, 200);
     }
 
+    /** D12: a DELETE that took a talk out is 204 with no body (the harness's checks 2-6 failed on 200 + Entry, tick 200-203). */
+    private void removed(HttpResponse<String> res) {
+        assertEquals(204, res.statusCode(), res.body());
+        assertEquals("", res.body());
+    }
+
     private void assertEntry(JsonNode e, String room, String slot, String start, String end, long talkId) {
         assertEquals(room, e.get("room").asText());
         assertEquals(slot, e.get("slot").asText());
@@ -108,10 +114,10 @@ class ProgrammeTest {
     }
 
     @Test
-    void r2d11d12_deleteReturnsRemovedEntryThenGone() {
+    void r2d11d12_deleteIs204ThenGone() {
         long talk = acceptedTalk();
         entry(put("R1", "S3", talk));
-        assertEntry(entry(delete("R1", "S3")), "R1", "S3", "11:30", "12:30", talk); // D12
+        removed(delete("R1", "S3")); // D12
         assertEquals(404, get("R1", "S3").statusCode());
         assertEquals(404, delete("R1", "S3").statusCode()); // D11
     }
@@ -120,7 +126,7 @@ class ProgrammeTest {
     void r2_removedTalkCanBePlacedElsewhere() {
         long talk = acceptedTalk();
         entry(put("R1", "S1", talk));
-        entry(delete("R1", "S1"));
+        removed(delete("R1", "S1"));
         assertEntry(entry(put("R3", "S5", talk)), "R3", "S5", "15:45", "16:45", talk);
     }
 
@@ -130,7 +136,8 @@ class ProgrammeTest {
         JsonNode e = Api.body(api.put("/programme/R1/S1/", "{\"talkId\":" + talk + "}"), 200);
         assertEntry(e, "R1", "S1", "09:00", "10:00", talk);
         assertEntry(Api.body(api.get("/programme/R1/S1/"), 200), "R1", "S1", "09:00", "10:00", talk);
-        assertEntry(Api.body(api.send("DELETE", "/programme/R1/S1/", null), 200), "R1", "S1", "09:00", "10:00", talk);
+        removed(api.send("DELETE", "/programme/R1/S1/", null));
+        assertEquals(404, get("R1", "S1").statusCode());
     }
 
     // ------------------------------------------------------------ D1, D3, D4: invalid path / body / talk
@@ -168,9 +175,17 @@ class ProgrammeTest {
         assertEquals(404, get("R1", "S1").statusCode());
     }
 
+    // 400, not 404: the harness's scheduling/check-1 failed on 404 for an unknown talkId (tick 199-202). Same as an
+    // unknown speakerId in the POST /talks body.
     @Test
-    void d4_unknownTalkIs404() {
-        assertEquals(404, put("R1", "S1", 999999).statusCode());
+    void d4_unknownTalkIs400AndPlacesNothing() {
+        assertEquals(400, put("R1", "S1", 999999).statusCode());
+        assertEquals(404, get("R1", "S1").statusCode());
+    }
+
+    @Test
+    void d13_unknownSlotBeatsUnknownTalk() {
+        assertEquals(404, put("R1", "S6", 999999).statusCode());
     }
 
     @Test
@@ -375,7 +390,7 @@ class ProgrammeTest {
             }
             assertTrue(ok >= 1);
             assertEquals(winner, entry(get("R1", "S1")).get("talkId").asLong());
-            entry(delete("R1", "S1"));
+            removed(delete("R1", "S1"));
         }
     }
 
@@ -413,12 +428,12 @@ class ProgrammeTest {
             if (get("R1", "S1").statusCode() == 200) {
                 placed++;
                 assertEquals(a, entry(get("R1", "S1")).get("talkId").asLong());
-                entry(delete("R1", "S1"));
+                removed(delete("R1", "S1"));
             }
             if (get("R2", "S1").statusCode() == 200) {
                 placed++;
                 assertEquals(b, entry(get("R2", "S1")).get("talkId").asLong());
-                entry(delete("R2", "S1"));
+                removed(delete("R2", "S1"));
             }
             assertEquals(1, placed);
         }
@@ -453,11 +468,11 @@ class ProgrammeTest {
             int placed = 0;
             if (get("R1", "S1").statusCode() == 200) {
                 placed++;
-                entry(delete("R1", "S1"));
+                removed(delete("R1", "S1"));
             }
             if (get("R2", "S2").statusCode() == 200) {
                 placed++;
-                entry(delete("R2", "S2"));
+                removed(delete("R2", "S2"));
             }
             assertEquals(1, placed);
         }

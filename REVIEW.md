@@ -145,6 +145,21 @@ failed when it drew `WAITLISTED`. Now any repeat of the same decision is 409. Le
 FAULTY right after a fix is a sibling case of the same rule, not flakiness; we should have dropped D6
 together with D7.
 
+**scheduling, ticks 199–203: DELETE body and unknown talk.** Claimed at tick 198; all six checks FAULTY
+from the first run. Checks 2–6 failed on `DELETE /programme/{room}/{slot}`. Each check first clears the
+cells it will use. A DELETE of an empty cell (our 404) passed; a DELETE that took a talk out (our 200 with
+the removed `Entry`, D12) failed the check right there. So check-2 was OK at ticks 199 and 201, when its
+cell happened to be empty, and FAULTY at 200 and 202. Check-1 failed on `PUT` with an unknown `talkId`,
+where we answered 404 (D4). Changed on `fix/scheduling-harness`: DELETE is 204 with no body, and an
+unknown `talkId` is 400 (as an unknown `speakerId` is on `POST /talks`). Both are our reading of the
+request; the harness only says what it doesn't want. Not yet deployed, so not yet confirmed by the harness.
+
+Why our review missed it: D12 and D4 were two of the guesses the spec had flagged for the product owner
+(Q2 asked about DELETE in so many words), and the team went ahead without answers. Spec, `ProgrammeTest`,
+the Hurl example and the Vitest suite then all pinned the guesses. Same lesson as acceptance and
+workshop-registration: an unanswered status-code question is the riskiest line in the spec. For a
+DELETE the request gives no response for, 204 is the conventional reading.
+
 ## 5. Reusable artifacts
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage

@@ -31,7 +31,7 @@ Depends on: **acceptance** (merged on `main`; claim optional). Only `ACCEPTED` t
 |---|---|---|---|
 | PUT | `/programme/{room}/{slot}` | `{"talkId": n}` | 200, `Entry` |
 | GET | `/programme/{room}/{slot}` | — | 200, `Entry` |
-| DELETE | `/programme/{room}/{slot}` | — | 200, see D8 |
+| DELETE | `/programme/{room}/{slot}` | — | 204, no body (D12) |
 
 `Entry`:
 
@@ -58,7 +58,7 @@ Conventions: 400 = invalid request shape/path tokens; 404 = missing resource; 40
 | D1 | unknown / wrong-case / extra room or slot in path | 404 | path resource; don’t invent rooms |
 | D2 | `GET` on an empty cell | 404 | nothing to return; like missing talk |
 | D3 | `PUT` body missing/`talkId` missing/null/not integer | 400 | invalid request |
-| D4 | `PUT` unknown `talkId` | 404 | talk is the resource being placed |
+| D4 | `PUT` unknown `talkId` | 400 | Was 404; the harness's check-1 failed on that (tick 199-202). Like an unknown `speakerId` in `POST /talks`. |
 | D5 | `PUT` talk not `ACCEPTED` (any other status) | 409 | state refuses scheduling (R3) |
 | D6 | `PUT` workshop into `S1`/`S2`/`S3`/`S5` | 409 | does not fit (R4) |
 | D7 | `PUT` when cell occupied by **another** talk | 409 | one talk per cell (R5) |
@@ -66,8 +66,8 @@ Conventions: 400 = invalid request shape/path tokens; 404 = missing resource; 40
 | D9 | `PUT` same talk into the **same** cell again (idempotent) | 200, same `Entry` | no rule break; avoids flaky double-clicks |
 | D10 | `PUT` would double-book a speaker/co-speaker in that slot | 409 | R6 |
 | D11 | `DELETE` on empty cell | 404 | like removing a non-co-speaker |
-| D12 | `DELETE` success | 200 with the `Entry` that was removed (room, slot, start, end, talkId) | useful for clients; request only describes DELETE |
-| D13 | order of `PUT` checks | 404 room/slot → 400 body → 404 talk → 409 status → 409 fit → 409 same-talk-elsewhere → 409 cell occupied → 409 speaker clash → write | path/input before rules |
+| D12 | `DELETE` success | 204, no body | Was 200 + removed `Entry`; the harness's checks 2-6 failed on that (tick 200-203). The request's API lists no response for `delete`. |
+| D13 | order of `PUT` checks | 404 room/slot → 400 body → 400 unknown talk → 409 status → 409 fit → 409 same-talk-elsewhere → 409 cell occupied → 409 speaker clash → write | path/input before rules |
 | D14 | after accept→schedule, talk withdrawn/rejected later | programme row stays until DELETE (R7) | harness: “if a talk changes afterwards, the programme stays” |
 | D15 | co-speakers added after scheduling | programme stays; clash not re-checked (R7) | same |
 | D16 | trailing slash on `/programme/.../` | accept like speakers (legacy) | consistency |

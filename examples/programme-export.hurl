@@ -117,4 +117,4 @@ jsonpath "$.talkId" == {{talk_id}}
 
 # Clean up
 DELETE {{base_url}}/programme/R3/S5
-HTTP 200
+HTTP 204
