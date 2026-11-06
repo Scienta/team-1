@@ -6,3 +6,5 @@ target/
 .idea/
 *.iml
 .fagdag/harness-token
+black-box-tests/node_modules/
+
