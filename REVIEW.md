@@ -47,6 +47,14 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
   speakers, talks, ratings, and co-speakers (including the harness-aligned 400/404 co-speaker edges).
   Hurl remains smoke; Vitest is the deep gate. Documented in root README and `black-box-tests/README.md`.
   Prefer `CFP_BASE_URL` so Cursor's `BASE_URL=/` does not silently retarget tests.
+- workshop-registration (`feat/workshop-registration`): every rule and decision row in
+  `specs/workshop-registration/spec.md` has a named test in `WorkshopRegistrationTest` (29 tests,
+  incl. a 60-request rush, parallel duplicate emails and registrations racing a withdrawal). Mutation
+  check on the concurrency tests: with the talk row lock removed from `WorkshopService.register`,
+  `r5_rushesOnTwoWorkshopsGetTwentyEach` failed with 21 registrations; restored. Also checked with
+  `examples/workshop-registration.hurl` (75 requests) and the Vitest suite
+  `black-box-tests/src/suites/workshop-registration.test.ts` (22 tests), both green against a local jar
+  on a Compose database that already held data. Not yet checked against the deployed service or the harness.
 
 ## 3. Claim log
 

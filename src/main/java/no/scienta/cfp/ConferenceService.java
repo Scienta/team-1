@@ -359,7 +359,7 @@ public class ConferenceService {
     }
 
     /** The body as a JSON object, or 400 (D3). */
-    private static JsonNode readObject(String body) {
+    static JsonNode readObject(String body) {
         if (body == null || body.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "a JSON body is required");
         }

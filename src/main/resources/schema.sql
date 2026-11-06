@@ -56,3 +56,12 @@ CREATE TABLE IF NOT EXISTS co_speaker (
     speaker_id INTEGER NOT NULL,
     UNIQUE (talk_id, speaker_id)
 );
+
+-- 2026-11 workshop registrations (specs/workshop-registration/spec.md). id gives the order they registered.
+CREATE TABLE IF NOT EXISTS workshop_registration (
+    id      SERIAL PRIMARY KEY,
+    talk_id INTEGER NOT NULL,
+    name    TEXT NOT NULL,
+    email   TEXT NOT NULL                           -- as typed; compared as lower(trim(email))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email ON workshop_registration (talk_id, lower(trim(email)));
