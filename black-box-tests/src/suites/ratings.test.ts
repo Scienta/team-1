@@ -36,10 +36,10 @@ describe("ratings", () => {
     expect(shown.averageRating).toBe(5);
   });
 
-  it("replaces a reviewer's score and rounds average to one decimal (half up)", async () => {
+  it("replaces a reviewer's score and rounds average to two decimals (ratings-cr)", async () => {
     const speaker = await createSpeaker();
     const talk = await createTalk({ speakerId: speaker.id });
-    // 4,4,4,5 → 4.25 → 4.3
+    // 4,4,4,5 → 4.25
     await rateTalk(talk.id, 4, uniqueReviewerId());
     await rateTalk(talk.id, 4, uniqueReviewerId());
     await rateTalk(talk.id, 4, uniqueReviewerId());
@@ -47,13 +47,13 @@ describe("ratings", () => {
     await rateTalk(talk.id, 5, r4);
     let shown = await getTalk(talk.id);
     expect(shown.ratingCount).toBe(4);
-    expect(shown.averageRating).toBe(4.3);
+    expect(shown.averageRating).toBe(4.25);
 
     await rateTalk(talk.id, 1, r4);
     shown = await getTalk(talk.id);
     expect(shown.ratingCount).toBe(4);
-    // 4,4,4,1 → 3.25 → 3.3
-    expect(shown.averageRating).toBe(3.3);
+    // 4,4,4,1 → 3.25
+    expect(shown.averageRating).toBe(3.25);
   });
 
   it("rejects invalid scores and reviewer ids; 404 for unknown talk", async () => {
