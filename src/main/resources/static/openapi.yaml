@@ -15,6 +15,7 @@ tags:
   - name: talks
   - name: ratings
   - name: co-speakers
+  - name: acceptance
   - name: admin
     description: Internal/admin helpers; not part of the public harness specs
 paths:
@@ -294,6 +295,71 @@ paths:
         '404':
           description: Talk or speaker not found, or the speaker isn't a co-speaker of the talk
 
+  /talks/{id}/status:
+    put:
+      tags: [acceptance]
+      summary: Accept, reject or waitlist a talk
+      description: |
+        From SUBMITTED or WAITLISTED. ACCEPTED and REJECTED are final; repeating the same
+        decision (or waitlisting a waitlisted talk) is 200 and changes nothing. Accepting
+        needs ratings from at least two different reviewers.
+      operationId: decideTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+            example:
+              status: ACCEPTED
+      responses:
+        '200':
+          description: The talk, with its new status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Talk'
+        '400':
+          description: Body missing or not JSON, or status isn't ACCEPTED, REJECTED or WAITLISTED
+        '404':
+          description: Talk not found
+        '409':
+          description: Not allowed from the talk's current status, or fewer than two reviewers for ACCEPTED
+
+  /talks/{id}/withdraw:
+    post:
+      tags: [acceptance]
+      summary: Withdraw a talk (its main speaker only)
+      description: From SUBMITTED, WAITLISTED or ACCEPTED. WITHDRAWN is final.
+      operationId: withdrawTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Withdrawal'
+            example:
+              speakerId: 1
+      responses:
+        '200':
+          description: The talk, now WITHDRAWN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Talk'
+        '400':
+          description: Body missing or not JSON, or speakerId isn't a whole number
+        '403':
+          description: speakerId isn't the talk's main speaker (co-speakers and unknown ids included)
+        '404':
+          description: Talk not found
+        '409':
+          description: The talk is REJECTED or already WITHDRAWN
+
   /admin/stats:
     get:
       tags: [admin]
@@ -380,6 +446,27 @@ components:
         level: { $ref: '#/components/schemas/Level' }
         speakerId: { type: integer, format: int64 }
 
+    Status:
+      type: string
+      enum: [SUBMITTED, ACCEPTED, REJECTED, WAITLISTED, WITHDRAWN]
+
+    Decision:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACCEPTED, REJECTED, WAITLISTED]
+
+    Withdrawal:
+      type: object
+      required: [speakerId]
+      properties:
+        speakerId:
+          type: integer
+          format: int64
+          description: The speaker asking to withdraw; must be the talk's main speaker
+
     Talk:
       type: object
       properties:
@@ -389,7 +476,7 @@ components:
         level: { $ref: '#/components/schemas/Level' }
         speakerId: { type: integer, format: int64 }
         durationMinutes: { type: integer }
-        status: { type: string, example: SUBMITTED }
+        status: { $ref: '#/components/schemas/Status' }
         submittedAt:
           type: string
           description: UTC instant, e.g. 2026-11-04T12:30:05.123+00:00

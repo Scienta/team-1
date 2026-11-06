@@ -1,0 +1,10 @@
+# Acceptance: review triage
+
+Reviewer verdict: ready (`./mvnw package` green, 84 tests). Triage by the implementer.
+
+| # | Finding | Severity | Verdict | What we did, or why not |
+|---|---|---|---|---|
+| 1 | Spec says "No existing test should change", but `ConferenceServiceTest` changed (constructor argument, new `theTalkLimitComesFromConfiguration`) | nit | Agree it's true, no code change | The change comes from the separate refactor commit 14ee2c5 (configurable 3-talk limit), not from this feature, and it weakens no assertion. The acceptance commits leave every existing test file untouched; the new D7 unit test goes in its own `AcceptanceServiceTest` for that reason. The spec is unchanged (not ours to edit); the coordinator notes it in the PR. |
+| 2 | `examples/acceptance.hurl` misses WAITLISTED → withdraw (200), WITHDRAWN → REJECTED (409), and withdraw with no body (400) | nit | Agree, fixed | Added all three: Talk E (the co-speaker's own talk) is waitlisted, then withdraw with no body gives 400, then a withdraw gives 200 WITHDRAWN; `REJECTED` on withdrawn talk A gives 409. The file passes against a local run (Compose Postgres). |
+| 3 | D7 "no ratings check for an already accepted talk" has no test; the API can't set it up because nothing removes ratings | nit | Agree, fixed | New mock unit test `AcceptanceServiceTest.d7_acceptingAnAcceptedTalkAgainSkipsTheRatingsCheck`: an ACCEPTED talk with 0 ratings, accepted again, gives ACCEPTED and no status update. It fails if the ratings check runs before the same-decision return. |
+| 4 | New team rule (PR #2, `.claude/rules/black-box-api.md`): the API change needs coverage in `black-box-tests/` | rule | Agree, done | Added `black-box-tests/src/suites/acceptance.test.ts` (53 tests: the 20-cell state table, R3, D1-D14, R7, two parallel R9 cases), and `decideTalk`/`withdrawTalk` (plus raw variants) and `createAcceptableTalk` in `helpers/factories.ts`, `TalkStatus` in `helpers/types.ts`. Recorded the decisions in `black-box-tests/decisions.md` and added a row to the README's suite table. Whole suite green: 88 tests in 6 files. |

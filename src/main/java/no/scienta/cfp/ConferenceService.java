@@ -9,8 +9,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -43,14 +47,17 @@ public class ConferenceService {
     private final RatingDao ratingDao;
     private final CoSpeakerDao coSpeakerDao;
     private final NotificationService notifications;
+    private final int maxTalksPerSpeaker;
 
     public ConferenceService(SpeakerDao speakerDao, TalkDao talkDao, RatingDao ratingDao, CoSpeakerDao coSpeakerDao,
-                             NotificationService notifications) {
+                             NotificationService notifications,
+                             @Value("${cfp.talks.max-per-speaker:3}") int maxTalksPerSpeaker) {
         this.speakerDao = speakerDao;
         this.talkDao = talkDao;
         this.ratingDao = ratingDao;
         this.coSpeakerDao = coSpeakerDao;
         this.notifications = notifications;
+        this.maxTalksPerSpeaker = maxTalksPerSpeaker;
     }
 
     // ---------------------------------------------------------------- speakers
@@ -147,7 +154,7 @@ public class ConferenceService {
 
         Long id = checkSubmissionLimit(form, duration);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most " + maxTalksPerSpeaker + " talks");
         }
         Map<String, Object> speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted((String) speaker.get("email"), form.title);
@@ -155,10 +162,10 @@ public class ConferenceService {
     }
 
     /**
-     * Checks that the speaker is below the limit of 3 talks.
+     * Checks that the speaker is below the limit of talks ({@code cfp.talks.max-per-speaker}, 3 by default).
      */
     private Long checkSubmissionLimit(TalkForm form, int duration) {
-        return talkDao.insertIfBelow(3, form.title, form.format, duration, form.level, form.speakerId,
+        return talkDao.insertIfBelow(maxTalksPerSpeaker, form.title, form.format, duration, form.level, form.speakerId,
                 System.currentTimeMillis());
     }
 
@@ -281,6 +288,91 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker is not a co-speaker of this talk");
         }
         return getTalk(talkId);
+    }
+
+    // ---------------------------------------------------------------- acceptance (specs/acceptance/spec.md)
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final List<String> DECISIONS = Arrays.asList("ACCEPTED", "REJECTED", "WAITLISTED");
+    private static final int MIN_REVIEWERS_TO_ACCEPT = 2;
+
+    /**
+     * The committee's decision. Order of checks (D12): 404 talk, 400 body, 409 state or ratings. The talk row is
+     * locked first so concurrent decisions and withdrawals run one after the other (R9).
+     */
+    @Transactional
+    public TalkDto decide(long talkId, String body) {
+        if (!talkDao.lockForUpdate(talkId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+        }
+        JsonNode status = readObject(body).get("status");
+        if (status == null || !status.isTextual() || !DECISIONS.contains(status.asText())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status must be one of " + DECISIONS);
+        }
+        String to = status.asText();
+        TalkDto talk = getTalk(talkId);
+        String from = talk.status;
+        if (from.equals(to)) {
+            return talk; // D6, D7: the same decision again changes nothing
+        }
+        if (!from.equals("SUBMITTED") && !from.equals("WAITLISTED")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a " + from + " talk can't be " + to); // R2, R6, D4
+        }
+        if (to.equals("ACCEPTED") && talk.ratingCount < MIN_REVIEWERS_TO_ACCEPT) {
+            // ratingCount counts distinct reviewers: the rating table's key is (talk_id, reviewer_id). R3, D5
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "a talk needs ratings from " + MIN_REVIEWERS_TO_ACCEPT + " different reviewers to be accepted");
+        }
+        return changeStatus(talk, to);
+    }
+
+    /**
+     * The main speaker withdraws their talk. Order of checks (D12): 404 talk, 400 body, 403 who, 409 state.
+     */
+    @Transactional
+    public TalkDto withdraw(long talkId, String body) {
+        if (!talkDao.lockForUpdate(talkId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+        }
+        JsonNode speakerId = readObject(body).get("speakerId");
+        if (speakerId == null || !speakerId.isIntegralNumber() || !speakerId.canConvertToLong()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speakerId must be a whole number"); // D8
+        }
+        TalkDto talk = getTalk(talkId);
+        if (talk.speakerId != speakerId.asLong()) {
+            // D9, D10: co-speakers, other speakers and unknown ids alike
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "only the talk's speaker can withdraw it");
+        }
+        if (talk.status.equals("REJECTED") || talk.status.equals("WITHDRAWN")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a " + talk.status + " talk can't be withdrawn"); // D11
+        }
+        return changeStatus(talk, "WITHDRAWN");
+    }
+
+    private TalkDto changeStatus(TalkDto talk, String to) {
+        // Second guard behind the row lock: only if the status is still the one we checked.
+        if (!talkDao.updateStatusIf(talk.id, talk.status, to)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "the talk's status changed meanwhile");
+        }
+        talk.status = to;
+        return talk;
+    }
+
+    /** The body as a JSON object, or 400 (D3). */
+    private static JsonNode readObject(String body) {
+        if (body == null || body.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "a JSON body is required");
+        }
+        JsonNode node;
+        try {
+            node = JSON.readTree(body);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the body isn't valid JSON");
+        }
+        if (node == null || !node.isObject()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the body must be a JSON object");
+        }
+        return node;
     }
 
     // ---------------------------------------------------------------- statistics
