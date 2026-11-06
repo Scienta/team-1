@@ -1,5 +1,8 @@
 package no.scienta.cfp;
 
+import java.sql.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +59,41 @@ public class ProgrammeDao {
 
     public boolean delete(Venue.Room room, Venue.Slot slot) {
         return jdbc.update("DELETE FROM programme WHERE room = ? AND slot = ?", room.name(), slot.name()) > 0;
+    }
+
+    /**
+     * Every occupied cell with its talk's current title, format and speaker names (specs/programme-export/spec.md R5,
+     * R6), in one statement so a row never mixes before and after a concurrent change. Unordered: the caller sorts.
+     * Speaker rows that don't exist are left out (D20); cells with an unknown room or slot are skipped.
+     */
+    public List<ProgrammeRow> exportRows() {
+        List<ProgrammeRow> rows = new ArrayList<>();
+        jdbc.query(
+                "SELECT p.room, p.slot, p.talk_id, t.title, t.format, s.name AS main_name, "
+                        + "  ARRAY(SELECT cs_s.name FROM co_speaker cs JOIN speaker cs_s ON cs_s.id = cs.speaker_id "
+                        + "        WHERE cs.talk_id = t.id ORDER BY cs.id) AS co_names "
+                        + "FROM programme p "
+                        + "JOIN talk t ON t.id = p.talk_id "
+                        + "LEFT JOIN speaker s ON s.id = t.speaker_id",
+                rs -> {
+                    Optional<Venue.Room> room = Venue.parseRoom(rs.getString("room"));
+                    Optional<Venue.Slot> slot = Venue.parseSlot(rs.getString("slot"));
+                    if (room.isEmpty() || slot.isEmpty()) {
+                        return;
+                    }
+                    List<String> speakers = new ArrayList<>();
+                    String main = rs.getString("main_name");
+                    if (main != null) {
+                        speakers.add(main);
+                    }
+                    Array co = rs.getArray("co_names");
+                    if (co != null) {
+                        speakers.addAll(Arrays.asList((String[]) co.getArray()));
+                    }
+                    rows.add(new ProgrammeRow(room.get(), slot.get(), rs.getLong("talk_id"),
+                            rs.getString("title"), rs.getString("format"), speakers));
+                });
+        return rows;
     }
 
     static final class OccupiedCell {
