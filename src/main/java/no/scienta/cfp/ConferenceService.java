@@ -41,13 +41,15 @@ public class ConferenceService {
     private final SpeakerDao speakerDao;
     private final TalkDao talkDao;
     private final RatingDao ratingDao;
+    private final CoSpeakerDao coSpeakerDao;
     private final NotificationService notifications;
 
-    public ConferenceService(SpeakerDao speakerDao, TalkDao talkDao, RatingDao ratingDao,
+    public ConferenceService(SpeakerDao speakerDao, TalkDao talkDao, RatingDao ratingDao, CoSpeakerDao coSpeakerDao,
                              NotificationService notifications) {
         this.speakerDao = speakerDao;
         this.talkDao = talkDao;
         this.ratingDao = ratingDao;
+        this.coSpeakerDao = coSpeakerDao;
         this.notifications = notifications;
     }
 
@@ -162,7 +164,7 @@ public class ConferenceService {
         if (talk == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
         }
-        addRatings(talk);
+        enrich(talk);
         return talk;
     }
 
@@ -172,7 +174,7 @@ public class ConferenceService {
         }
         List<TalkDto> talks = talkDao.findBySpeaker(speakerId);
         for (TalkDto t : talks) {
-            addRatings(t);
+            enrich(t);
         }
         return talks;
     }
@@ -183,7 +185,7 @@ public class ConferenceService {
         }
         List<TalkDto> talks = speakerId == null ? talkDao.findAll() : talkDao.findBySpeaker(speakerId);
         for (TalkDto t : talks) {
-            addRatings(t);
+            enrich(t);
         }
         if ("rating".equals(sort)) {
             List<TalkDto> rated = new ArrayList<>();
@@ -212,6 +214,11 @@ public class ConferenceService {
         return talks;
     }
 
+    private void enrich(TalkDto talk) {
+        addRatings(talk);
+        talk.coSpeakerIds = coSpeakerDao.findByTalk(talk.id);
+    }
+
     private void addRatings(TalkDto talk) {
         Map<String, Object> stats = ratingDao.stats(talk.id);
         int count = ((Number) stats.get("cnt")).intValue();
@@ -224,6 +231,49 @@ public class ConferenceService {
     private Double calculateAverage(long total, int count) {
         return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
         // return Utils.roundRating((double) total / count);
+    }
+
+    // ---------------------------------------------------------------- co-speakers
+
+    private static final int MAX_CO_SPEAKERS = 2;
+
+    /**
+     * Adds a co-speaker to the end of the talk's list. Adding someone who is already a co-speaker changes nothing.
+     */
+    @Transactional
+    public TalkDto addCoSpeaker(long talkId, long speakerId) {
+        talkDao.lockForUpdate(talkId);
+        TalkDto talk = getTalk(talkId);
+        if (!speakerDao.exists(speakerId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
+        }
+        if (talk.coSpeakerIds.contains(speakerId)) {
+            return talk;
+        }
+        if (talk.speakerId == speakerId) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "the main speaker can't also be a co-speaker");
+        }
+        if (talk.coSpeakerIds.size() >= MAX_CO_SPEAKERS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
+        }
+        coSpeakerDao.insert(talkId, speakerId);
+        talk.coSpeakerIds.add(speakerId);
+        return talk;
+    }
+
+    /**
+     * Removes a co-speaker. Removing a speaker who isn't a co-speaker changes nothing.
+     */
+    @Transactional
+    public TalkDto removeCoSpeaker(long talkId, long speakerId) {
+        if (!talkDao.lockForUpdate(talkId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+        }
+        if (!speakerDao.exists(speakerId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
+        }
+        coSpeakerDao.delete(talkId, speakerId);
+        return getTalk(talkId);
     }
 
     // ---------------------------------------------------------------- statistics

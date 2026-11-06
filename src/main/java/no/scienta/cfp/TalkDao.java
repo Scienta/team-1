@@ -53,6 +53,14 @@ public class TalkDao {
     }
 
     /**
+     * Locks the talk row until the transaction ends, so two changes to the same talk's co-speakers can't both see
+     * room under the limit. Returns false if there is no such talk.
+     */
+    public boolean lockForUpdate(long id) {
+        return !jdbc.queryForList("SELECT id FROM talk WHERE id = ? FOR UPDATE", id).isEmpty();
+    }
+
+    /**
      * Inserts the talk only if the speaker has fewer than {@code max} talks. Returns the new id, or null.
      * The speaker row is locked first so two submissions for the same speaker can't both see room under the limit.
      */
