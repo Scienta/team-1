@@ -58,7 +58,7 @@ describe("scheduling", () => {
   });
 
   describe("R2, D2, D11, D12, D16: put / get / delete", () => {
-    it("places, reads, removes (with Entry), and allows re-place elsewhere", async () => {
+    it("places, reads, removes (204, no body), and allows re-place elsewhere", async () => {
       await clear(["R1", "S1"], ["R2", "S1"]);
       const speaker = await createSpeaker();
       const talk = await createAcceptedTalk(speaker.id);
@@ -67,8 +67,7 @@ describe("scheduling", () => {
       assertEntry(placed, "R1", "S1", talk.id);
       assertEntry(await getProgramme("R1", "S1"), "R1", "S1", talk.id);
 
-      const removed = await deleteProgramme("R1", "S1");
-      assertEntry(removed, "R1", "S1", talk.id);
+      await deleteProgramme("R1", "S1");
       expectStatus(await getProgrammeRaw("R1", "S1"), 404);
       expectStatus(await deleteProgrammeRaw("R1", "S1"), 404);
 
@@ -89,8 +88,9 @@ describe("scheduling", () => {
       expectStatus(getRes, 200);
 
       const delRes = await deleteProgrammeRaw("R3", "S2", true);
-      expectStatus(delRes, 200);
-      assertEntry(delRes.json as ProgrammeEntry, "R3", "S2", talk.id);
+      expectStatus(delRes, 204);
+      expect(delRes.text).toBe("");
+      expectStatus(await getProgrammeRaw("R3", "S2"), 404);
     });
   });
 
@@ -119,9 +119,14 @@ describe("scheduling", () => {
       expectStatus(await putProgrammeRaw("R1", "S3", { talkId: 1.5 }), 400);
     });
 
-    it("unknown talkId is 404 (D4)", async () => {
+    it("unknown talkId is 400 and places nothing (D4; harness check-1 failed on 404)", async () => {
       await clear(["R2", "S3"]);
-      expectStatus(await putProgrammeRaw("R2", "S3", { talkId: UNKNOWN_ID }), 404);
+      expectStatus(await putProgrammeRaw("R2", "S3", { talkId: UNKNOWN_ID }), 400);
+      expectStatus(await getProgrammeRaw("R2", "S3"), 404);
+    });
+
+    it("unknown slot beats unknown talkId (D13)", async () => {
+      expectStatus(await putProgrammeRaw("R2", "S6", { talkId: UNKNOWN_ID }), 404);
     });
 
     it("unknown room beats bad body (D13)", async () => {
