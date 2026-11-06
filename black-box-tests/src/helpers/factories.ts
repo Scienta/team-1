@@ -1,7 +1,7 @@
 import { expectJson, expectStatus } from "./expect.js";
 import { del, get, post, put } from "./http.js";
 import { uniqueEmail, uniqueName, uniqueReviewerId } from "./ids.js";
-import type { Decision, Rating, Speaker, Talk, TalkFormat, TalkLevel } from "./types.js";
+import type { Decision, Rating, Registration, Speaker, Talk, TalkFormat, TalkLevel } from "./types.js";
 
 export type NewSpeakerInput = {
   name?: string;
@@ -123,6 +123,35 @@ export async function createAcceptableTalk(speakerId: number): Promise<Talk> {
   await rateTalk(talk.id, 4);
   await rateTalk(talk.id, 5);
   return getTalk(talk.id);
+}
+
+/** A talk of the given format, rated by two reviewers and accepted. */
+export async function createAcceptedTalk(speakerId: number, format: TalkFormat): Promise<Talk> {
+  const talk = await createTalk({ speakerId, format });
+  await rateTalk(talk.id, 4);
+  await rateTalk(talk.id, 5);
+  return decideTalk(talk.id, "ACCEPTED");
+}
+
+/** An accepted workshop with a speaker of its own (workshop-registration). */
+export async function createAcceptedWorkshop(): Promise<Talk> {
+  const speaker = await createSpeaker();
+  return createAcceptedTalk(speaker.id, "WORKSHOP");
+}
+
+/** POST /workshops/{id}/registrations with any body (a string is sent verbatim; undefined sends no body). */
+export async function registerRaw(workshopId: number | string, body?: unknown) {
+  return post<Registration>(`/workshops/${workshopId}/registrations`, body);
+}
+
+/** Registers for a workshop. Expects 201 and returns the registration. */
+export async function register(workshopId: number, name: string, email: string): Promise<Registration> {
+  return expectJson(await registerRaw(workshopId, { name, email }), 201);
+}
+
+/** A workshop's registrations. Expects 200. */
+export async function listRegistrations(workshopId: number): Promise<Registration[]> {
+  return expectJson(await get<Registration[]>(`/workshops/${workshopId}/registrations`), 200);
 }
 
 export { expectStatus };

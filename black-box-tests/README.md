@@ -14,6 +14,7 @@ Agent rule when the API changes: [`.claude/rules/black-box-api.md`](../.claude/r
 | `ratings` | Scores, replace, rounding, `sort=rating` ties, unrated, concurrency |
 | `co-speakers` | Order, idempotent add, max 2, main-as-co 400, remove-missing 404, quota |
 | `acceptance` | Full state table, 2 distinct reviewers to accept, main-speaker-only withdraw 403, D1-D13 codes, idempotent repeats, concurrent decisions |
+| `workshop-registration` | Accepted workshops only, 404 for non-workshops, 20 seats under a parallel rush, one per email (case/space-insensitive, also in parallel), list order, withdrawn keeps its list, D1-D19 codes |
 
 Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 
