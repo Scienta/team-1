@@ -58,6 +58,15 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
   An independent review agent then found that a tab or line break around an email slipped past the
   duplicate check (Postgres `trim()` strips only spaces), against D9's "surrounding whitespace ignored".
   We fixed it with a test that failed first; triage of all three findings is in `specs/workshop-registration/review.md`.
+- Concurrency review of `src/main` (agent, read against the code and the schema's unique indexes): parallel
+  `PUT /speakers/{id}` requests moving different speakers to one email got 500, not 409. The check-then-update
+  in `ConferenceService.updateSpeaker` raced, and `ux_speaker_email`'s `DuplicateKeyException` went uncaught.
+  Reproduced locally (6 parallel PUTs ×5 runs: 1–3 × 500 per run). Fixed by mapping it to 409. The new
+  `SpeakersTest.concurrentUpdatesToOneEmailHaveOneWinnerAndNoServerError` failed with the fix removed and passes
+  with it. All Java tests and the Vitest suite (111 tests, new parallel-update test included) pass against a JDK 25
+  jar on the Compose database. Not yet checked against the deployed service. The same review flagged, without
+  reproducing it, that `/health` borrows from the 5-connection pool with no bound on connection wait, so it
+  can return 503 under pool contention; left open.
 
 ## 3. Claim log
 
@@ -111,7 +120,7 @@ found", decision D2); the harness wants something else. Now 409, the other optio
 product owner ("this talk doesn't take registrations"), deployed as `500faa6`. The check then got one
 request further and failed at tick 174 on the next one: listing that presentation's registrations,
 where we still answered 404. Now 200 with an empty list for any existing talk; only an unknown talk
-is 404.
+is 404 (`a2d0e47`). check-2 OK from tick 181 (FAULTY ticks 162–180).
 
 Why our review missed it: the same pattern as acceptance. D2 was a PO-confirmed answer, so the spec,
 `WorkshopRegistrationTest`, the Hurl example and the Vitest suite all pinned 404, and the reviewer
