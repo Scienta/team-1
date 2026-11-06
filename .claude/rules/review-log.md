@@ -1,6 +1,6 @@
-# Keep REVIEW.md current
+# Keep team-1-REVIEW.md current
 
-`REVIEW.md` is the team's running log and what we present at 17:00. Update it as you go, in the
+`team-1-REVIEW.md` is the team's running log and what we present at 17:00. Update it as you go, in the
 same commit as the work when there is one, not at the end of the day.
 
 ## When to write what

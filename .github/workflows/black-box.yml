@@ -1,9 +1,11 @@
 # Black-box Vitest suite against a job-local Postgres + jar.
-# Mark this check required in branch protection; it is not wired into deploy.yml.
+# Runs on pull requests and on every push to main (the main build). It is not a deploy gate.
 name: black-box
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

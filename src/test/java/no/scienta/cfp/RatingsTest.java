@@ -91,7 +91,7 @@ class RatingsTest {
     }
 
     @Test
-    void theAverageIsRoundedHalfUpToOneDecimal() {
+    void theAverageIsRoundedToTwoDecimals() {
         long talk = newTalk();
         api.rate(talk, 1, 4);
         api.rate(talk, 2, 4);
@@ -99,7 +99,7 @@ class RatingsTest {
         api.rate(talk, 4, 5);
         JsonNode shown = Api.body(api.get("/talks/" + talk), 200);
         assertEquals(4, shown.get("ratingCount").asInt());
-        assertEquals("4.3", shown.get("averageRating").asString());
+        assertEquals("4.25", shown.get("averageRating").asString()); // ratings-cr R3: was 4.3
     }
 
     @Test
@@ -135,8 +135,8 @@ class RatingsTest {
         rateAll(fourOnce, 4);
         rateAll(fourAndAHalf, 5, 4);
         rateAll(fourTwiceLater, 4, 4);
-        rateAll(fourPointTwoFive, 4, 4, 4, 5);   // 4.25, shown as 4.3, 4 ratings
-        rateAll(fourPointThreeThree, 4, 4, 5);   // 4.33, shown as 4.3, 3 ratings
+        rateAll(fourPointTwoFive, 4, 4, 4, 5);   // 4.25, 4 ratings (ratings-cr: no longer ties with 4.33)
+        rateAll(fourPointThreeThree, 4, 4, 5);   // 4.33, 3 ratings
 
         List<Long> ours = List.of(unrated, fourTwice, fourOnce, fourAndAHalf, fourTwiceLater, fourPointTwoFive,
                 fourPointThreeThree);
@@ -146,7 +146,7 @@ class RatingsTest {
                 ranked.add(t.get("id").asLong());
             }
         }
-        assertEquals(List.of(fourAndAHalf, fourPointTwoFive, fourPointThreeThree, fourTwice, fourTwiceLater, fourOnce,
+        assertEquals(List.of(fourAndAHalf, fourPointThreeThree, fourPointTwoFive, fourTwice, fourTwiceLater, fourOnce,
                 unrated), ranked);
 
         boolean seenUnrated = false;

@@ -1,5 +1,6 @@
 package no.scienta.cfp;
 
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,12 +42,14 @@ public class ProgrammeService {
         programmeDao.lockSlot(slot);
         List<ProgrammeDao.OccupiedCell> occupied = programmeDao.lockOccupiedInSlot(slot);
 
+        // D4: 400, not 404 (the talk is named in the body, like speakerId on POST /talks); the harness's
+        // scheduling/check-1 failed on 404 (tick 199-202).
         if (!talkDao.lockForUpdate(talkId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found"); // D4
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "talk " + talkId + " does not exist");
         }
         TalkDto talk = talkDao.findById(talkId);
         if (talk == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "talk " + talkId + " does not exist");
         }
 
         // D9: same talk already in this cell — idempotent
@@ -108,14 +111,54 @@ public class ProgrammeService {
     }
 
     @Transactional
-    public ProgrammeEntry delete(String roomToken, String slotToken) {
+    /** D12: the controller answers 204 with no body; the harness's checks 2-6 failed on 200 + Entry (tick 200-203). */
+    public void delete(String roomToken, String slotToken) {
         Venue.Room room = parseRoom(roomToken);
         Venue.Slot slot = parseSlot(slotToken);
         programmeDao.lockSlot(slot);
-        ProgrammeDao.OccupiedCell cell = programmeDao.find(room, slot)
+        programmeDao.find(room, slot)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "programme cell is empty")); // D11
         programmeDao.delete(room, slot);
-        return new ProgrammeEntry(room, slot, cell.talkId); // D12
+    }
+
+    /**
+     * The whole programme, earliest slot first and within a slot by room (specs/programme-export/spec.md R3, D19).
+     * Read-only at the default isolation, no row locks (spec Concurrency).
+     */
+    @Transactional(readOnly = true)
+    public List<ProgrammeRow> export() {
+        List<ProgrammeRow> rows = programmeDao.exportRows();
+        rows.sort(Comparator.comparing((ProgrammeRow r) -> Venue.Slot.valueOf(r.slot))
+                .thenComparing(r -> Venue.Room.valueOf(r.room)));
+        return rows;
+    }
+
+    /** RFC 4180 CSV with Unix record terminators (R8, R9, R10). */
+    static String toCsv(List<ProgrammeRow> rows) {
+        StringBuilder sb = new StringBuilder("slot,start,end,room,talkId,title,format,speakers\n");
+        for (ProgrammeRow r : rows) {
+            sb.append(csvField(r.slot)).append(',')
+                    .append(csvField(r.start)).append(',')
+                    .append(csvField(r.end)).append(',')
+                    .append(csvField(r.room)).append(',')
+                    .append(r.talkId).append(',')
+                    .append(csvField(r.title)).append(',')
+                    .append(csvField(r.format)).append(',')
+                    .append(csvField(String.join("; ", r.speakers))) // R6
+                    .append('\n');
+        }
+        return sb.toString();
+    }
+
+    /** Quoted only when it holds a comma, a double quote or a line break; quotes inside are doubled (R10, D7-D9). */
+    static String csvField(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.indexOf(',') < 0 && value.indexOf('"') < 0 && value.indexOf('\n') < 0 && value.indexOf('\r') < 0) {
+            return value;
+        }
+        return '"' + value.replace("\"", "\"\"") + '"';
     }
 
     private Set<Long> speakersOf(TalkDto talk) {

@@ -418,6 +418,46 @@ paths:
         '404':
           description: No such talk
 
+  /programme:
+    get:
+      tags: [programme]
+      summary: The whole programme as JSON
+      description: |
+        One row per scheduled talk, earliest slot first (S1..S5), then room R1, R2, R3.
+        Title, format and speaker names are the talk's current ones. Withdrawn or rejected
+        talks that are still scheduled stay in. Always JSON, whatever the Accept header.
+      operationId: exportProgramme
+      responses:
+        '200':
+          description: The programme (empty array when nothing is scheduled)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProgrammeRow'
+
+  /programme.csv:
+    get:
+      tags: [programme]
+      summary: The whole programme as CSV
+      description: |
+        Same rows and order as GET /programme. RFC 4180 with Unix line endings, UTF-8, no BOM.
+        First line is `slot,start,end,room,talkId,title,format,speakers`; speakers are joined
+        with "; ". Fields are quoted only when they contain a comma, a double quote or a line
+        break. Always text/csv, whatever the Accept header.
+      operationId: exportProgrammeCsv
+      responses:
+        '200':
+          description: The programme as CSV (just the header line when nothing is scheduled)
+          content:
+            text/csv:
+              schema:
+                type: string
+              example: |
+                slot,start,end,room,talkId,title,format,speakers
+                S4,13:30,15:30,R1,42,"Kotlin, ""really"" fast",WORKSHOP,Grace Hopper; Ada Lovelace
+
   /programme/{room}/{slot}:
     parameters:
       - name: room
@@ -452,9 +492,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Entry'
         '400':
-          description: Body missing or not JSON, or talkId isn't a whole number
+          description: Body missing or not JSON, talkId isn't a whole number, or no talk has that id
         '404':
-          description: Unknown room/slot, or talk not found
+          description: Unknown room/slot
         '409':
           description: Not ACCEPTED, workshop in a short slot, cell occupied, talk already placed, or speaker clash
     get:
@@ -473,15 +513,11 @@ paths:
     delete:
       tags: [programme]
       summary: Take the talk out of this room and slot
-      description: Returns the removed entry. The talk may be placed elsewhere afterwards.
+      description: The talk may be placed elsewhere afterwards.
       operationId: unscheduleTalk
       responses:
-        '200':
-          description: The entry that was removed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Entry'
+        '204':
+          description: The talk was taken out; no body
         '404':
           description: Unknown room/slot, or the cell is empty
 
@@ -660,6 +696,22 @@ components:
       properties:
         talkId: { type: integer, format: int64 }
 
+    ProgrammeRow:
+      type: object
+      required: [slot, start, end, room, talkId, title, format, speakers]
+      properties:
+        slot: { $ref: '#/components/schemas/Slot' }
+        start: { type: string, description: 'Slot start, HH:mm', example: '13:30' }
+        end: { type: string, description: 'Slot end, HH:mm', example: '15:30' }
+        room: { $ref: '#/components/schemas/Room' }
+        talkId: { type: integer, format: int64, example: 42 }
+        title: { type: string, example: 'Kotlin, "really" fast' }
+        format: { type: string, example: WORKSHOP }
+        speakers:
+          type: array
+          description: Main speaker first, then co-speakers in the order they were added
+          items: { type: string }
+          example: [Grace Hopper, Ada Lovelace]
     Entry:
       type: object
       required: [room, slot, start, end, talkId]
