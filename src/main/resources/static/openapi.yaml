@@ -452,9 +452,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Entry'
         '400':
-          description: Body missing or not JSON, or talkId isn't a whole number
+          description: Body missing or not JSON, talkId isn't a whole number, or no talk has that id
         '404':
-          description: Unknown room/slot, or talk not found
+          description: Unknown room/slot
         '409':
           description: Not ACCEPTED, workshop in a short slot, cell occupied, talk already placed, or speaker clash
     get:
@@ -473,15 +473,11 @@ paths:
     delete:
       tags: [programme]
       summary: Take the talk out of this room and slot
-      description: Returns the removed entry. The talk may be placed elsewhere afterwards.
+      description: The talk may be placed elsewhere afterwards.
       operationId: unscheduleTalk
       responses:
-        '200':
-          description: The entry that was removed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Entry'
+        '204':
+          description: The talk was taken out; no body
         '404':
           description: Unknown room/slot, or the cell is empty
 
