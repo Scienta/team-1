@@ -9,6 +9,7 @@ import {
   createSpeaker,
   createTalk,
   decideTalk,
+  decideTalkRaw,
   deleteProgramme,
   deleteProgrammeRaw,
   getProgramme,
@@ -221,6 +222,16 @@ describe("scheduling", () => {
       await deleteProgramme("R1", "S5");
       await deleteProgramme("R3", "S5");
     });
+
+    it("different speakers in the same slot different rooms is 200", async () => {
+      await clear(["R1", "S3"], ["R2", "S3"]);
+      const a = await createAcceptedTalk((await createSpeaker()).id);
+      const b = await createAcceptedTalk((await createSpeaker()).id);
+      assertEntry(await putProgramme("R1", "S3", a.id), "R1", "S3", a.id);
+      assertEntry(await putProgramme("R2", "S3", b.id), "R2", "S3", b.id);
+      await deleteProgramme("R1", "S3");
+      await deleteProgramme("R2", "S3");
+    });
   });
 
   describe("R7, D9, D14, D15: later talk changes leave the programme", () => {
@@ -234,6 +245,17 @@ describe("scheduling", () => {
       assertEntry(await getProgramme("R3", "S1"), "R3", "S1", talk.id);
       assertEntry(await putProgramme("R3", "S1", talk.id), "R3", "S1", talk.id);
       await deleteProgramme("R3", "S1");
+    });
+
+    it("decision refused after schedule leaves the Entry (D14)", async () => {
+      // ACCEPTED → REJECTED is 409 (acceptance); programme must still be unchanged.
+      await clear(["R2", "S2"]);
+      const talk = await createAcceptedTalk((await createSpeaker()).id);
+      await putProgramme("R2", "S2", talk.id);
+      expectStatus(await decideTalkRaw(talk.id, { status: "REJECTED" }), 409);
+      expect((await getTalk(talk.id)).status).toBe("ACCEPTED");
+      assertEntry(await getProgramme("R2", "S2"), "R2", "S2", talk.id);
+      await deleteProgramme("R2", "S2");
     });
 
     it("co-speaker added after schedule does not re-check clash (D15)", async () => {
@@ -331,6 +353,26 @@ describe("scheduling", () => {
       expect(placed.length).toBe(1);
 
       await clear(["R1", "S2"], ["R2", "S2"]);
+    });
+
+    it("concurrent same talk into two slots: at most one placement", async () => {
+      await clear(["R1", "S1"], ["R1", "S2"]);
+      const talk = await createAcceptedTalk((await createSpeaker()).id);
+
+      const [r1, r2] = await Promise.all([
+        putProgrammeRaw("R1", "S1", { talkId: talk.id }),
+        putProgrammeRaw("R1", "S2", { talkId: talk.id }),
+      ]);
+      const codes = [r1.status, r2.status].sort();
+      expect(codes).toEqual([200, 409]);
+
+      const g1 = await getProgrammeRaw("R1", "S1");
+      const g2 = await getProgrammeRaw("R1", "S2");
+      const placed = [g1, g2].filter((g) => g.status === 200);
+      expect(placed.length).toBe(1);
+      expect((placed[0].json as { talkId: number }).talkId).toBe(talk.id);
+
+      await clear(["R1", "S1"], ["R1", "S2"]);
     });
   });
 
