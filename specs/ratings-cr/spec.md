@@ -2,7 +2,7 @@
 
 Feature request: `specs/ratings-cr/request.md` (harness slug `ratings-cr`, V 2, released at tick 167).
 Changes the claimed base feature Ratings (`specs/ratings/spec.md`).
-Status: draft
+Status: PO confirmed (question 1 answered)
 
 ## Rules (from the feature request)
 
@@ -41,7 +41,7 @@ Changed field: `Talk.averageRating` (JSON number or `null`), now trimmed at 5+ r
 | D5 | JSON form | Keep `averageRating` a `Double`: Jackson writes the shortest form, so `4.5` (not `4.50`), `4.0`, `4.33`, `3.12` | JSON numbers have no meaningful trailing zeros; the harness compares numbers (`4.5 == 4.50`). Base tests/examples assert `4.5`, `4.0`, `5`, and `"averageRating":4.5,` in the body (`UpgradeInvariantsTest`); a `BigDecimal` field would print `4.50`/`4.00` and change the CSV. The double from a 2-decimal `BigDecimal` prints back as those 2 decimals |
 | D6 | Ranking ties | Compare the rounded doubles (`Double.compare`), as today; equal 2-decimal values give identical doubles, so tie-breaks (count desc, id asc, unrated last) apply exactly as before | R5; ranking "uses the new, rounded average" |
 | D7 | Re-rating (PUT upsert by the same reviewer) | No special case: the stats are recomputed from the current rows, so a re-rate can change which score is min/max; `ratingCount` unchanged | Upsert already replaces the row (R6) |
-| D8 | `/admin/stats` `averageRating` | Unchanged formula: mean of the rated talks' `averageRating` values, cut off to 1 decimal with `Utils.roundRating`. Its inputs are now the new talk averages, so the number may change | Not part of the Ratings spec; "everything else stays as it is". The talk average is defined once and reused |
+| D8 | `/admin/stats` `averageRating` | Mean of the rated talks' `averageRating` values (the new talk averages), **rounded to 2 decimals HALF_EVEN** (BigDecimal, like the talk average), replacing the 1-decimal `Utils.roundRating` cut-off here; `null` when no talk is rated, as today | **PO confirmed** (question 1): same rounding as the talk average |
 | D9 | `/admin/talks.csv` rating column | Unchanged code: `String.valueOf(averageRating)` with a decimal comma, so it now shows up to 2 decimals (`4,33`, `4,5`, `4,0`) | Same value as the JSON, same formatting rule as before |
 | D10 | Acceptance, scheduling/programme, workshop registration | Not affected: acceptance counts distinct reviewers (not the average); scheduling and workshops don't read ratings | Checked in `ConferenceService` (only `listTalks` sort, `addRatings`, admin stats read `averageRating`) |
 
@@ -118,3 +118,4 @@ and must change:
 
 1. (Low risk) Should `/admin/stats` `averageRating` (today: mean of talk averages, cut off to 1 decimal)
    also move to 2 decimals / banker's rounding, or stay as it is? We keep it as it is (D8).
+   **Answered (PO, relayed by a team member, 2026-11-06): yes, 2 decimals with banker's rounding.** D8 updated.
