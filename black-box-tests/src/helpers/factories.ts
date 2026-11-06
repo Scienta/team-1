@@ -5,6 +5,7 @@ import { uniqueEmail, uniqueName, uniqueReviewerId } from "./ids.js";
 import type {
   Decision,
   ProgrammeEntry,
+  ProgrammeRow,
   Rating,
   Registration,
   Room,
@@ -14,6 +15,7 @@ import type {
   TalkFormat,
   TalkLevel,
 } from "./types.js";
+import { ROOMS, SLOTS } from "./types.js";
 
 export type NewSpeakerInput = {
   name?: string;
@@ -219,6 +221,31 @@ export async function getProgrammeRaw(room: string, slot: string, trailingSlash 
 
 export async function deleteProgrammeRaw(room: string, slot: string, trailingSlash = false) {
   return del<ProgrammeEntry>(programmePath(room, slot, trailingSlash));
+}
+
+/** Empties every cell of the fixed venue (programme-export tests need a known programme). */
+export async function clearWholeProgramme(): Promise<void> {
+  for (const slot of SLOTS) for (const room of ROOMS) await clearProgrammeCell(room, slot);
+}
+
+/** GET /programme (programme-export). Expects 200 and returns the rows. */
+export async function getProgrammeExport(headers?: Record<string, string>): Promise<ProgrammeRow[]> {
+  return expectJson(await get<ProgrammeRow[]>("/programme", { headers }), 200);
+}
+
+/** GET /programme.csv (programme-export) with optional headers; the raw response. */
+export async function getProgrammeCsvRaw(headers?: Record<string, string>, path = "/programme.csv") {
+  return get<string>(path, { headers });
+}
+
+/** GET /programme.csv. Expects 200 and returns the body text. */
+export async function getProgrammeCsv(headers?: Record<string, string>): Promise<string> {
+  return expectStatus(await getProgrammeCsvRaw(headers), 200).text;
+}
+
+/** PUT /speakers/{id} (rename). Expects 200. */
+export async function updateSpeaker(id: number, body: { name: string; email: string; bio?: string | null }): Promise<Speaker> {
+  return expectJson(await put<Speaker>(`/speakers/${id}`, body), 200);
 }
 
 export { expectStatus };

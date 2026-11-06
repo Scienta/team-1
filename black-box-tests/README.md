@@ -16,6 +16,7 @@ Agent rule when the API changes: [`.claude/rules/black-box-api.md`](../.claude/r
 | `acceptance` | Full state table, 2 distinct reviewers to accept, main-speaker-only withdraw 403, D1-D13 codes, idempotent repeats, concurrent decisions |
 | `workshop-registration` | Accepted workshops only, 404 for non-workshops, 20 seats under a parallel rush, one per email (case/space-insensitive, also in parallel), list order, withdrawn keeps its list, D1-D19 codes |
 | `scheduling` | Programme put/get/delete, venue times, ACCEPTED-only, workshop→S4, occupancy/once, speaker clashes, R7 leave-in-place, concurrent cell/slot races |
+| `programme-export` | `GET /programme` JSON and `/programme.csv` (RFC 4180, `\n`, quoting, `; ` join), order, current names, empty programme, Accept handling, 405s, exports during parallel edits |
 
 Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 
@@ -30,6 +31,9 @@ Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 2. Node `>=20`, and the Java version in `/.java-version` (25) for building the jar.
 
 ## Commands
+
+> The `programme-export` suite (and `scheduling`, cell by cell) empties programme cells: `clearWholeProgramme()`
+> deletes all 15. Fine in CI and locally; don't point the suite at `TEAM_URL`, it would wipe the live programme.
 
 ```bash
 cd black-box-tests
