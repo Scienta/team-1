@@ -53,7 +53,7 @@ Error bodies now match 2.7 byte for byte (R12a), with two exceptions listed in `
 ### Merge notes
 
 - **Merging deploys** (tests gate first). The deploy builds on Java 25.
-- Maria's `feat/acceptance` touches the same areas (imports, test helpers): whichever merges second gets small mechanical conflicts; re-run `./mvnw package` on Java 25 after resolving.
+- `main` is already merged in (acceptance #5, its 409 fix, workshop registration #6); their tests needed only mechanical Boot 4 changes. Any branch still open against `main` (e.g. scheduling) will need the same mechanical changes after this merges.
 - Locally you now need **JDK 25** to build (`winget install EclipseAdoptium.Temurin.25.JDK`).
 
 ### Before claiming (after merge, a person checks)
