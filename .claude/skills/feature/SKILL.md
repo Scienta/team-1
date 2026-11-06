@@ -45,6 +45,10 @@ person asks the product owner; agents can't. When they answer, update the spec's
 them "PO confirmed"), commit and push. If they say go without answers, note the questions as
 unanswered in the spec and continue.
 
+If an answer contradicts the request's wording or `workflow/harness-heuristics.md` (for example,
+"idempotent" where the request says "final"), say so before recording it. Mark the row
+`RISK: contradicts H<n>` and let the person choose. Three relayed answers like that failed checks.
+
 ## 4. Implement (TDD)
 
 Start the `implementer` agent: "Implement `specs/<slug>/spec.md` test-first on branch
@@ -82,5 +86,29 @@ into the PR for a person to decide.
 When asked: wait for the deploy (`curl $TEAM_URL/health` shows the merge SHA), run
 `hurl --test --variable base_url=$TEAM_URL examples/<slug>.hurl`, read
 `.github/fagdag/logs.sh --tail 100` for 5xx, and check the harness feedback for all claimed features.
-Report the evidence. A **person** claims on the harness; then add the claim-log row to `team-1-REVIEW.md`
+One merge per deploy: don't let a person merge the next PR until `/health` shows this SHA (a
+deploy during a check burst fails every check, H18).
+
+Then run the harness probes (`workflow/harness-heuristics.md`) against `TEAM_URL` for every new endpoint, and
+put each request, its status and the H item it checks in the report:
+
+```bash
+U=$TEAM_URL
+# H1/H2: unknown id in the path is 404, in the body is 400
+curl -s -o /dev/null -w '%{http_code}\n' -X <METHOD> "$U/<path with id 2000000000>" -H 'Content-Type: application/json' -d '<valid body>'
+curl -s -o /dev/null -w '%{http_code}\n' -X <METHOD> "$U/<path>" -H 'Content-Type: application/json' -d '{"<idField>": 2000000000}'
+# H3/H10: a refused write, then GET the same resource: 200, unchanged
+# H9: repeat each state change with every value: 409 where the request says final/once
+# H12/H13: 12 identical requests in parallel: count the statuses, expect exactly 1 (or N) success, no 5xx
+seq 12 | xargs -P 12 -I{} curl -s -o /dev/null -w '%{http_code}\n' -X <METHOD> "$U/<path>" \
+  -H 'Content-Type: application/json' -d '<body>' | sort | uniq -c
+```
+
+Also read the harness's own traffic on the new paths in the logs (H19: it probes before the claim, but
+`/feedback` hides unclaimed checks) and compare each status we gave with H1–H16. Any mismatch or
+`RISK:` row is a reason not to claim yet. Report the evidence. A **person** claims on the harness; then add the claim-log row to `team-1-REVIEW.md`
 with the tick and that evidence (`.claude/rules/review-log.md`).
+
+After the claim, check the feature's checks again on the next two ticks. On a FAULTY check, fix the
+whole rule, not just the request in the transcript: the check stops at its first failure and may pick
+values at random (H9, H11). Add what it taught us to `workflow/harness-heuristics.md`.
