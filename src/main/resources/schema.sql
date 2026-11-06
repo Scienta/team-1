@@ -67,3 +67,20 @@ CREATE TABLE IF NOT EXISTS workshop_registration (
 -- Same expression as RegistrationDao.normalised: trim() alone strips only spaces, this also tab, LF, CR, FF, VT.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email_ws
     ON workshop_registration (talk_id, lower(btrim(email, E' \t\n\r\f\013')));
+
+-- 2026-11 programme scheduling. Occupied cells only; UNIQUE (talk_id) enforces one placement per talk.
+CREATE TABLE IF NOT EXISTS programme (
+    room    TEXT NOT NULL,
+    slot    TEXT NOT NULL,
+    talk_id BIGINT NOT NULL REFERENCES talk(id),
+    PRIMARY KEY (room, slot),
+    UNIQUE (talk_id)
+);
+
+-- One row per slot so concurrent edits to the same slot can take a row lock (R8).
+CREATE TABLE IF NOT EXISTS programme_slot (
+    slot TEXT PRIMARY KEY
+);
+
+INSERT INTO programme_slot (slot) VALUES ('S1'), ('S2'), ('S3'), ('S4'), ('S5')
+ON CONFLICT (slot) DO NOTHING;
