@@ -46,6 +46,17 @@ public class TalkController {
         return service.rate(id, reviewerId, body);
     }
 
+    // The bodies are read as text so that an unknown talk is 404 even when the body is bad (spec D12).
+    @PutMapping("/talks/{id}/status")
+    public TalkDto decide(@PathVariable Long id, @RequestBody(required = false) String body) {
+        return service.decide(id, body);
+    }
+
+    @PostMapping("/talks/{id}/withdraw")
+    public TalkDto withdraw(@PathVariable Long id, @RequestBody(required = false) String body) {
+        return service.withdraw(id, body);
+    }
+
     @PutMapping("/talks/{id}/co-speakers/{speakerId}")
     public TalkDto addCoSpeaker(@PathVariable Long id, @PathVariable Long speakerId) {
         return service.addCoSpeaker(id, speakerId);
