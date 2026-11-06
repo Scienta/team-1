@@ -7,6 +7,9 @@ export default defineConfig({
     include: ["src/suites/**/*.test.ts"],
     testTimeout: 30_000,
     hookTimeout: 60_000,
-    fileParallelism: true,
+    // Hikari pool is capped at 5; parallel suite files + in-test concurrency exhaust it.
+    fileParallelism: false,
+    pool: "forks",
+    maxWorkers: 1,
   },
 });
