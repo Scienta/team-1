@@ -31,8 +31,8 @@ class UtilsTest {
         assertEquals("Workshop", Utils.capitalize("WORKSHOP"));
     }
 
-    // Only /admin/stats uses this; it cuts off on purpose (CFP-61). A talk's averageRating rounds half up instead
-    // (ConferenceService.calculateAverage, tested in RatingsTest).
+    // No longer used by /admin/stats (ratings-cr D8: 2 decimals half even). A talk's averageRating is trimmed and
+    // rounded half even to 2 decimals (ConferenceService.calculateAverage, tested in RatingsCrTest).
     @Test
     void roundRatingCutsOffForTheAdminStatistics() {
         assertEquals(4.2, Utils.roundRating(4.25));

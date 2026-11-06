@@ -26,26 +26,28 @@ public class RatingDao {
     }
 
     /**
-     * Returns {cnt, total} for one talk.
+     * Returns {cnt, total, lo, hi} for one talk.
      */
     public Map<String, Object> stats(long talkId) {
-        return jdbc.queryForMap("SELECT COUNT(*) AS cnt, COALESCE(SUM(score), 0) AS total FROM rating WHERE talk_id = ?", talkId);
+        return jdbc.queryForMap("SELECT COUNT(*) AS cnt, COALESCE(SUM(score), 0) AS total, COALESCE(MIN(score), 0) AS lo, COALESCE(MAX(score), 0) AS hi FROM rating WHERE talk_id = ?", talkId);
     }
 
     /**
-     * Returns {cnt, total} by talk id for the given talks, in one query. Talks without ratings aren't in the map.
+     * Returns {cnt, total, lo, hi} by talk id for the given talks, in one query. Talks without ratings aren't in the map.
      */
     public Map<Long, Map<String, Object>> statsByTalk(Collection<Long> talkIds) {
         Map<Long, Map<String, Object>> stats = new HashMap<>();
         if (talkIds.isEmpty()) {
             return stats;
         }
-        jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
+        jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total, MIN(score) AS lo, MAX(score) AS hi FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
                 ps -> ps.setArray(1, ps.getConnection().createArrayOf("bigint", talkIds.toArray())),
                 rs -> {
                     Map<String, Object> row = new HashMap<>();
                     row.put("cnt", rs.getLong("cnt"));
                     row.put("total", rs.getLong("total"));
+                    row.put("lo", rs.getLong("lo"));
+                    row.put("hi", rs.getLong("hi"));
                     stats.put(rs.getLong("talk_id"), row);
                 });
         return stats;

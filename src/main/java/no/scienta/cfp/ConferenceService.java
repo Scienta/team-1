@@ -255,7 +255,7 @@ public class ConferenceService {
         }
     }
 
-    private static final Map<String, Object> NO_RATINGS = Map.of("cnt", 0, "total", 0);
+    private static final Map<String, Object> NO_RATINGS = Map.of("cnt", 0, "total", 0, "lo", 0, "hi", 0);
 
     private void addRatings(TalkDto talk) {
         addRatings(talk, ratingDao.stats(talk.id));
@@ -263,15 +263,21 @@ public class ConferenceService {
 
     private void addRatings(TalkDto talk, Map<String, Object> stats) {
         int count = ((Number) stats.get("cnt")).intValue();
-        long total = ((Number) stats.get("total")).longValue();
         talk.ratingCount = count;
-        talk.averageRating = count == 0 ? null : calculateAverage(total, count);
+        talk.averageRating = count == 0 ? null : calculateAverage(((Number) stats.get("total")).longValue(), count,
+                ((Number) stats.get("lo")).longValue(), ((Number) stats.get("hi")).longValue());
     }
 
-    // 1 decimal, half up (4.25 -> 4.3), as the ratings spec says. Not Utils.roundRating: that cuts off, for
-    // /admin/stats only.
-    private Double calculateAverage(long total, int count) {
-        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
+    // ratings-cr R1-R3, D1: at 5+ ratings leave out one lowest and one highest score, then 2 decimals half even
+    // (3.125 -> 3.12). Exact integer division, rounded once. Used by both the single-talk and the list path (D2).
+    static Double calculateAverage(long total, int count, long lo, long hi) {
+        long keptTotal = count >= 5 ? total - hi - lo : total;
+        long keptCount = count >= 5 ? count - 2 : count;
+        return twoDecimalsHalfEven(BigDecimal.valueOf(keptTotal), keptCount);
+    }
+
+    private static double twoDecimalsHalfEven(BigDecimal sum, long n) {
+        return sum.divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_EVEN).doubleValue();
     }
 
     // ---------------------------------------------------------------- co-speakers
@@ -418,7 +424,7 @@ public class ConferenceService {
         Map<String, Integer> byStatus = new LinkedHashMap<>();
         Set<Long> speakersWithTalks = new HashSet<>();
         int minutes = 0;
-        double ratingSum = 0;
+        BigDecimal ratingSum = BigDecimal.ZERO;
         int rated = 0;
         for (TalkDto t : talks) {
             byFormat.put(t.format, byFormat.getOrDefault(t.format, 0) + 1);
@@ -429,7 +435,7 @@ public class ConferenceService {
             }
             minutes += t.durationMinutes;
             if (t.averageRating != null) {
-                ratingSum += t.averageRating;
+                ratingSum = ratingSum.add(BigDecimal.valueOf(t.averageRating));
                 rated++;
             }
         }
@@ -441,7 +447,7 @@ public class ConferenceService {
         stats.put("byLevel", byLevel);
         stats.put("byStatus", byStatus);
         stats.put("totalHours", minutes / 60);
-        stats.put("averageRating", rated == 0 ? null : Utils.roundRating(ratingSum / rated));
+        stats.put("averageRating", rated == 0 ? null : twoDecimalsHalfEven(ratingSum, rated));  // ratings-cr D8, PO confirmed
         stats.put("generated", Utils.now());
         return stats;
     }

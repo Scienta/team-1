@@ -70,7 +70,7 @@ class UpgradeInvariantsTest {
         assertTrue(t.body().contains("\"averageRating\":null"), t.body());
     }
 
-    // R7: ids are integers, averageRating is a JSON number with one decimal.
+    // R7: ids are integers, averageRating is a JSON number (2 decimals since ratings-cr).
     @Test
     void numberTypesAreUnchanged() {
         long speaker = api.newSpeaker();
