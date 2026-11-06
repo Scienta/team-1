@@ -16,6 +16,7 @@ tags:
   - name: ratings
   - name: co-speakers
   - name: acceptance
+  - name: workshops
   - name: admin
     description: Internal/admin helpers; not part of the public harness specs
 paths:
@@ -360,6 +361,62 @@ paths:
         '409':
           description: The talk is REJECTED or already WITHDRAWN
 
+  /workshops/{id}/registrations:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The workshop's talk id
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [workshops]
+      summary: Register for an accepted workshop
+      description: |
+        Only talks with format WORKSHOP and status ACCEPTED take registrations. At most 20 per
+        workshop, and one per email (compared case-insensitively, surrounding spaces ignored).
+        name and email are stored and returned as sent.
+      operationId: registerForWorkshop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+            example:
+              name: Ada
+              email: ADA@Example.com
+      responses:
+        '201':
+          description: The registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          description: Id not an integer, body missing or not a JSON object, name or email missing or blank, or email not an email
+        '404':
+          description: No such talk, or the talk isn't a workshop
+        '409':
+          description: The workshop isn't ACCEPTED, the email is already registered for it, or it has 20 registrations
+    get:
+      tags: [workshops]
+      summary: A workshop's registrations, first registered first
+      description: Whatever the workshop's status; a withdrawn workshop keeps its list.
+      operationId: listWorkshopRegistrations
+      responses:
+        '200':
+          description: The registrations; [] when none
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Registration'
+        '400':
+          description: Id not an integer
+        '404':
+          description: No such talk, or the talk isn't a workshop
+
   /admin/stats:
     get:
       tags: [admin]
@@ -494,6 +551,21 @@ components:
           type: array
           items: { type: integer, format: int64 }
           description: The co-speakers' speaker ids, in the order they were added; [] when none
+
+    RegistrationRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string }
+
+    Registration:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        workshopId: { type: integer, format: int64, description: The workshop's talk id }
+        name: { type: string }
+        email: { type: string, description: As the attendee typed it }
 
     Rating:
       type: object

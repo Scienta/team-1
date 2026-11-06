@@ -37,3 +37,10 @@ export type Health = {
   status: string;
   version: string;
 };
+
+export type Registration = {
+  id: number;
+  workshopId: number;
+  name: string;
+  email: string;
+};
