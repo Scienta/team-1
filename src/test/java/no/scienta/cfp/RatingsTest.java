@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +57,7 @@ class RatingsTest {
         assertEquals(talk, rating.get("talkId").asLong());
         assertEquals(42, rating.get("reviewerId").asLong());
         assertEquals(4, rating.get("score").asInt());
-        String shown = rating.get("ratedAtDisplay").asText();
+        String shown = rating.get("ratedAtDisplay").asString();
         assertTrue(RATED_AT_DISPLAY.matcher(shown).matches(), "not M/d/yy, h:mm AM with an ordinary space: " + shown);
         DateTimeFormatter usShort = DateTimeFormatter.ofPattern("M/d/yy, h:mm a", Locale.US);
         assertTrue(shown.equals(usShort.format(before)) || shown.equals(usShort.format(after)),
@@ -99,7 +99,7 @@ class RatingsTest {
         api.rate(talk, 4, 5);
         JsonNode shown = Api.body(api.get("/talks/" + talk), 200);
         assertEquals(4, shown.get("ratingCount").asInt());
-        assertEquals("4.3", shown.get("averageRating").asText());
+        assertEquals("4.3", shown.get("averageRating").asString());
     }
 
     @Test

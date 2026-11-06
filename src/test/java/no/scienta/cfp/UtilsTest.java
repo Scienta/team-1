@@ -65,6 +65,14 @@ class UtilsTest {
         assertTrue(drift < 60_000, "now() is " + drift + " ms off the clock");
     }
 
+    // D11: the committee spreadsheet's date (/admin/talks.csv), Oslo time, as Java 11 rendered it.
+    @Test
+    void norwegianDateIsTheCommitteeFormat() {
+        assertEquals("4. nov. 2026", Utils.norwegianDate(utc("2026-11-04T13:05:00Z")));
+        assertEquals("1. jan. 2027", Utils.norwegianDate(utc("2026-12-31T23:30:00Z")));
+        assertEquals("15. mai 2026", Utils.norwegianDate(utc("2026-05-15T10:00:00Z")));
+    }
+
     private static Date utc(String instant) {
         return Date.from(Instant.parse(instant));
     }

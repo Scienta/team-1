@@ -37,7 +37,7 @@ class ConferenceServiceTest {
         TalkForm form = form();
         form.title = " ";
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form));
-        assertEquals(HttpStatus.BAD_REQUEST, e.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
     }
 
     @Test
@@ -45,14 +45,14 @@ class ConferenceServiceTest {
         TalkForm form = form();
         form.format = "KEYNOTE";
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form));
-        assertEquals(HttpStatus.BAD_REQUEST, e.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
     }
 
     @Test
     void unknownSpeakerIsRejected() {
         when(speakerDao.exists(7L)).thenReturn(false);
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form()));
-        assertEquals(HttpStatus.BAD_REQUEST, e.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
     }
 
     @Test
@@ -64,7 +64,7 @@ class ConferenceServiceTest {
                 .thenReturn(null);
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form()));
         verify(talkDao).insertIfBelow(eq(5), anyString(), anyString(), anyInt(), anyString(), anyLong(), anyLong());
-        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals(HttpStatus.CONFLICT, e.getStatusCode());
         assertEquals("a speaker can submit at most 5 talks", e.getReason());
     }
 
@@ -77,7 +77,7 @@ class ConferenceServiceTest {
         when(speakerDao.insert("Ada", "ada@example.com", null))
                 .thenThrow(new DuplicateKeyException("FEIL: duplisert nøkkelverdi bryter unik-skranke"));
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.registerSpeaker(form));
-        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals(HttpStatus.CONFLICT, e.getStatusCode());
     }
 
     @Test
@@ -87,7 +87,7 @@ class ConferenceServiceTest {
         form.setEmail("ada@example.com");
         when(speakerDao.emailTaken("ada@example.com")).thenReturn(true);
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.registerSpeaker(form));
-        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals(HttpStatus.CONFLICT, e.getStatusCode());
     }
 
     private TalkForm form() {

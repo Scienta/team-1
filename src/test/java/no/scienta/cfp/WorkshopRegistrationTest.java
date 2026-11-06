@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +58,7 @@ class WorkshopRegistrationTest {
         api.rate(id, 1, 4);
         api.rate(id, 2, 5);
         assertEquals("ACCEPTED", Api.body(api.put("/talks/" + id + "/status", "{\"status\":\"ACCEPTED\"}"), 200)
-                .get("status").asText());
+                .get("status").asString());
         return id;
     }
 
@@ -108,8 +108,8 @@ class WorkshopRegistrationTest {
         JsonNode r = registered(w, "Ada Lovelace", "ada@example.com");
         assertTrue(r.get("id").isIntegralNumber(), r.toString());
         assertEquals(w, r.get("workshopId").asLong());
-        assertEquals("Ada Lovelace", r.get("name").asText());
-        assertEquals("ada@example.com", r.get("email").asText());
+        assertEquals("Ada Lovelace", r.get("name").asString());
+        assertEquals("ada@example.com", r.get("email").asString());
         assertEquals(4, r.size(), r.toString());
 
         JsonNode list = list(w);
@@ -279,7 +279,7 @@ class WorkshopRegistrationTest {
 
         JsonNode list = list(w);
         assertEquals(first, list.get(0));
-        assertEquals("Ada", list.get(0).get("name").asText());
+        assertEquals("Ada", list.get(0).get("name").asString());
     }
 
     // D9 "surrounding whitespace ignored": tabs and line breaks too, not only spaces (review finding 1)
@@ -359,11 +359,11 @@ class WorkshopRegistrationTest {
     void r8d12d13_emailAndNameAreReturnedAsTyped() {
         long w = workshop();
         JsonNode r = registered(w, "  Ada  Lovelace ", " ADA@Example.com ");
-        assertEquals(" ADA@Example.com ", r.get("email").asText());
-        assertEquals("  Ada  Lovelace ", r.get("name").asText());
+        assertEquals(" ADA@Example.com ", r.get("email").asString());
+        assertEquals("  Ada  Lovelace ", r.get("name").asString());
         JsonNode listed = list(w).get(0);
-        assertEquals(" ADA@Example.com ", listed.get("email").asText());
-        assertEquals("  Ada  Lovelace ", listed.get("name").asText());
+        assertEquals(" ADA@Example.com ", listed.get("email").asString());
+        assertEquals("  Ada  Lovelace ", listed.get("name").asString());
     }
 
     // ------------------------------------------------------------ R9, D16: registration order
@@ -488,8 +488,8 @@ class WorkshopRegistrationTest {
         long co = api.newSpeaker();
         long w = accepted(speaker, "WORKSHOP");
         Api.body(api.put("/talks/" + w + "/co-speakers/" + co, null), 200);
-        String speakerEmail = Api.body(api.get("/speakers/" + speaker), 200).get("email").asText();
-        String coEmail = Api.body(api.get("/speakers/" + co), 200).get("email").asText();
+        String speakerEmail = Api.body(api.get("/speakers/" + speaker), 200).get("email").asString();
+        String coEmail = Api.body(api.get("/speakers/" + co), 200).get("email").asString();
         registered(w, "Speaker", speakerEmail);
         registered(w, "Co-speaker", coEmail);
         fill(w, 18);

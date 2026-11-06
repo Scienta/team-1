@@ -1,0 +1,231 @@
+package no.scienta.cfp;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+import tools.jackson.databind.JsonNode;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringBootVersion;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.SpringVersion;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+/**
+ * The invariants of the Spring Boot upgrade (specs/spring-boot-4/spec.md) that the base suites didn't pin yet: the
+ * exact JSON formats, field names and order, null handling, framework-produced status codes and error bodies, JSON
+ * comments, and the running versions on /actuator/info. Runs the real app on a random port with a throwaway database.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class UpgradeInvariantsTest {
+
+    private static final Pattern TIMESTAMP = Pattern.compile("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}\\+00:00");
+    private static final Pattern SUBMITTED_ON = Pattern.compile("\\d{4}-\\d\\d-\\d\\d");
+
+    @DynamicPropertySource
+    static void database(DynamicPropertyRegistry registry) {
+        TestDatabase.fresh(registry);
+    }
+
+    @Value("${local.server.port}")
+    int port;
+
+    private Api api;
+
+    @BeforeEach
+    void api() {
+        api = new Api(port);
+    }
+
+    // R4, R5, D4, D13: both timestamps are JSON strings; submittedOn is exactly yyyy-MM-dd, the UTC date of submittedAt.
+    @Test
+    void submittedOnIsExactlyTheUtcDateOfSubmittedAt() {
+        JsonNode talk = api.newTalk(api.newSpeaker(), "PRESENTATION");
+        assertTrue(talk.get("submittedAt").isString(), talk.toString());
+        assertTrue(talk.get("submittedOn").isString(), talk.toString());
+        String submittedOn = talk.get("submittedOn").asString();
+        assertTrue(SUBMITTED_ON.matcher(submittedOn).matches(), submittedOn);
+        OffsetDateTime submittedAt = OffsetDateTime.parse(talk.get("submittedAt").asString());
+        assertEquals(submittedAt.withOffsetSameInstant(ZoneOffset.UTC).toLocalDate().toString(), submittedOn);
+    }
+
+    // R7, D13: nulls are written, not dropped.
+    @Test
+    void nullsAreWrittenNotDropped() {
+        long speaker = api.newSpeaker();
+        HttpResponse<String> s = api.get("/speakers/" + speaker);
+        assertTrue(s.body().contains("\"bio\":null"), s.body());
+        JsonNode talk = api.newTalk(speaker, "WORKSHOP");
+        HttpResponse<String> t = api.get("/talks/" + talk.get("id").asLong());
+        assertTrue(t.body().contains("\"averageRating\":null"), t.body());
+    }
+
+    // R7: ids are integers, averageRating is a JSON number with one decimal.
+    @Test
+    void numberTypesAreUnchanged() {
+        long speaker = api.newSpeaker();
+        long talk = api.newTalk(speaker, "WORKSHOP").get("id").asLong();
+        api.rate(talk, 1, 4);
+        api.rate(talk, 2, 5);
+        JsonNode shown = Api.body(api.get("/talks/" + talk), 200);
+        assertTrue(shown.get("id").isIntegralNumber(), shown.toString());
+        assertTrue(shown.get("speakerId").isIntegralNumber(), shown.toString());
+        assertTrue(shown.get("averageRating").isNumber(), shown.toString());
+        assertTrue(api.get("/talks/" + talk).body().contains("\"averageRating\":4.5,"));
+        assertTrue(Api.body(api.get("/speakers/" + speaker), 200).get("id").isIntegralNumber());
+    }
+
+    // R8, D8: field names, in today's order.
+    @Test
+    void fieldNamesAndOrderAreUnchanged() {
+        long speaker = api.newSpeaker();
+        assertEquals(List.of("id", "name", "email", "bio"), names(Api.body(api.get("/speakers/" + speaker), 200)));
+        JsonNode talk = api.newTalk(speaker, "PRESENTATION");
+        List<String> talkFields = List.of("id", "title", "format", "level", "speakerId", "durationMinutes", "status",
+                "submittedAt", "submittedOn", "averageRating", "ratingCount", "coSpeakerIds");
+        assertEquals(talkFields, names(talk));
+        assertEquals(talkFields, names(Api.body(api.get("/talks/" + talk.get("id").asLong()), 200)));
+        assertEquals(List.of("talkId", "reviewerId", "score", "ratedAtDisplay"),
+                names(api.rate(talk.get("id").asLong(), 3, 3)));
+        assertEquals(List.of("status", "version"), names(Api.body(api.get("/health"), 200)));
+    }
+
+    // R9, D9, D13: malformed JSON is 400, wherever a body is read.
+    @Test
+    void malformedJsonIsBadRequest() {
+        long speaker = api.newSpeaker();
+        long talk = api.newTalk(speaker, "PRESENTATION").get("id").asLong();
+        assertEquals(400, api.post("/speakers", "{\"name\":\"Ada\",").statusCode());
+        assertEquals(400, api.post("/talks", "{not json").statusCode());
+        assertEquals(400, api.put("/talks/" + talk + "/ratings/1", "{\"score\":").statusCode());
+        assertEquals(400, api.put("/speakers/" + speaker, "nope").statusCode());
+    }
+
+    // R9: a non-numeric path id is 400, not 404 or 500.
+    @Test
+    void aNonNumericPathIdIsBadRequest() {
+        assertEquals(400, api.get("/talks/abc").statusCode());
+        assertEquals(400, api.get("/speakers/abc").statusCode());
+        assertEquals(400, api.get("/speakers/abc/talks").statusCode());
+    }
+
+    // R12: error bodies keep Boot's shape, with the message filled in and the timestamp written as before.
+    @Test
+    void errorBodiesKeepBootsShapeWithTheMessage() {
+        HttpResponse<String> res = api.get("/talks/987654321");
+        JsonNode error = Api.body(res, 404);
+        assertEquals(List.of("timestamp", "status", "error", "message", "path"), names(error));
+        assertEquals(404, error.get("status").asInt());
+        assertTrue(TIMESTAMP.matcher(error.get("timestamp").asString()).matches(), error.toString());
+        assertEquals("Not Found", error.get("error").asString());
+        assertEquals("talk not found", error.get("message").asString());
+        assertEquals("/talks/987654321", error.get("path").asString());
+        // server.servlet.encoding.force=true (spring.servlet.encoding.force in Boot 4) put the charset on errors too.
+        assertEquals("application/json;charset=UTF-8", res.headers().firstValue("Content-Type").orElse(""));
+
+        JsonNode badRequest = Api.body(api.post("/talks", "{\"title\":\"T\",\"format\":\"KEYNOTE\",\"level\":\"BEGINNER\",\"speakerId\":1}"), 400);
+        assertEquals(List.of("timestamp", "status", "error", "message", "path"), names(badRequest));
+        assertEquals("Bad Request", badRequest.get("error").asString());
+        assertTrue(badRequest.get("message").asString().startsWith("format must be one of"), badRequest.toString());
+
+        JsonNode malformed = Api.body(api.post("/talks", "{not json"), 400);
+        assertEquals(400, malformed.get("status").asInt());
+        assertEquals("/talks", malformed.get("path").asString());
+        assertTrue(malformed.has("timestamp") && malformed.has("error") && malformed.has("message"), malformed.toString());
+    }
+
+    // D7: comments in request bodies are still accepted.
+    @Test
+    void jsonCommentsInRequestBodiesAreAccepted() {
+        String json = "{ /* mobile client */ \"name\":\"Ada\", // trailing\n \"email\":\"c-" + UUID.randomUUID() + "@example.com\"}";
+        assertEquals(201, api.post("/speakers", json).statusCode());
+    }
+
+    // R14: the admin exports answer as before.
+    @Test
+    void theAdminExportsAnswer() {
+        api.newTalk(api.newSpeaker(), "PRESENTATION");
+        JsonNode stats = Api.body(api.get("/admin/stats"), 200);
+        assertEquals(List.of("speakers", "speakersWithTalks", "talks", "byFormat", "byLevel", "byStatus", "totalHours",
+                "averageRating", "generated"), names(stats));
+        HttpResponse<String> csv = api.get("/admin/talks.csv");
+        assertEquals(200, csv.statusCode());
+        assertEquals("text/csv;charset=UTF-8", csv.headers().firstValue("Content-Type").orElse("").replace(" ", ""));
+        assertTrue(csv.body().startsWith("id;title;format;minutes;level;speaker;status;submitted;rating;ratings\n"), csv.body());
+    }
+
+    // R3, D13: /actuator/info reports the versions this process actually runs on.
+    @Test
+    void actuatorInfoReportsTheRunningVersions() {
+        JsonNode versions = Api.body(api.get("/actuator/info"), 200).get("versions");
+        assertEquals(List.of("java", "springBoot", "springFramework"), names(versions));
+        assertEquals(System.getProperty("java.version"), versions.get("java").asString());
+        assertEquals(SpringBootVersion.getVersion(), versions.get("springBoot").asString());
+        assertEquals(SpringVersion.getVersion(), versions.get("springFramework").asString());
+    }
+
+    // D12: /actuator/health answers as before (Boot 4 would add the liveness and readiness groups).
+    @Test
+    void actuatorHealthIsUnchanged() {
+        assertEquals("{\"status\":\"UP\"}", api.get("/actuator/health").body());
+    }
+
+    // R1, R2: the service runs on Spring Boot 4, Spring Framework 7 and Java 25.
+    @Test
+    void itRunsOnSpringBoot4SpringFramework7AndJava25() {
+        JsonNode versions = Api.body(api.get("/actuator/info"), 200).get("versions");
+        assertTrue(versions.get("springBoot").asString().startsWith("4."), versions.toString());
+        assertTrue(versions.get("springFramework").asString().startsWith("7."), versions.toString());
+        assertEquals(25, Runtime.version().feature(), versions.toString());
+        assertTrue(versions.get("java").asString().startsWith("25"), versions.toString());
+    }
+
+    // R11, D6: every speaker URL keeps answering with a trailing slash, as Spring 5 matched it.
+    @Test
+    void speakerUrlsWithATrailingSlashWorkLikeWithout() {
+        long speaker = api.newSpeaker();
+        api.newTalk(speaker, "PRESENTATION");
+        assertEquals(Api.body(api.get("/speakers/" + speaker + "/talks"), 200),
+                Api.body(api.get("/speakers/" + speaker + "/talks/"), 200));
+        String update = "{\"name\":\"Renamed\",\"email\":\"r-" + UUID.randomUUID() + "@example.com\"}";
+        assertEquals("Renamed", Api.body(api.put("/speakers/" + speaker + "/", update), 200).get("name").asString());
+        assertEquals(404, api.get("/speakers/987654321/").statusCode());
+    }
+
+    // R11, review #2: Spring 5 matched a trailing slash on every mapping, so the talk, rating and co-speaker URLs keep
+    // answering with one too, without a redirect.
+    @Test
+    void everyUrlWithATrailingSlashWorksLikeWithout() {
+        long speaker = api.newSpeaker();
+        long other = api.newSpeaker();
+        long talk = api.newTalk(speaker, "PRESENTATION").get("id").asLong();
+        String json = "{\"title\":\"Slash\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":" + speaker + "}";
+        assertEquals("WORKSHOP", Api.body(api.post("/talks/", json), 201).get("format").asString());
+        assertEquals(4, Api.body(api.put("/talks/" + talk + "/ratings/2/", "{\"score\":4}"), 200).get("score").asInt());
+        assertEquals(Api.body(api.get("/talks/" + talk), 200), Api.body(api.get("/talks/" + talk + "/"), 200));
+        assertEquals(Api.body(api.get("/talks?speakerId=" + speaker), 200),
+                Api.body(api.get("/talks/?speakerId=" + speaker), 200));
+        assertEquals(1, Api.body(api.put("/talks/" + talk + "/co-speakers/" + other + "/", null), 200)
+                .get("coSpeakerIds").size());
+        assertEquals(0, Api.body(api.send("DELETE", "/talks/" + talk + "/co-speakers/" + other + "/", null), 200)
+                .get("coSpeakerIds").size());
+        assertEquals(200, api.get("/admin/stats/").statusCode());
+        assertEquals(404, api.get("/talks/987654321/").statusCode());
+    }
+
+    private static List<String> names(JsonNode node) {
+        List<String> names = new ArrayList<>();
+        names.addAll(node.propertyNames());
+        return names;
+    }
+}
