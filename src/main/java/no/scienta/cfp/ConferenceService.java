@@ -5,9 +5,11 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -118,6 +120,11 @@ public class ConferenceService {
         return getSpeaker(id);
     }
 
+    /** Every speaker's name by id, for the exports. */
+    public Map<Long, String> speakerNames() {
+        return speakerDao.namesById();
+    }
+
     public List<Map<String, Object>> searchSpeakers(String q) {
         return speakerDao.search(q);
     }
@@ -188,9 +195,7 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
         }
         List<TalkDto> talks = talkDao.findBySpeaker(speakerId);
-        for (TalkDto t : talks) {
-            enrich(t);
-        }
+        enrichAll(talks);
         return talks;
     }
 
@@ -199,9 +204,7 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be 'rating'");
         }
         List<TalkDto> talks = speakerId == null ? talkDao.findAll() : talkDao.findBySpeaker(speakerId);
-        for (TalkDto t : talks) {
-            enrich(t);
-        }
+        enrichAll(talks);
         if ("rating".equals(sort)) {
             List<TalkDto> rated = new ArrayList<>();
             List<TalkDto> unrated = new ArrayList<>();
@@ -234,8 +237,31 @@ public class ConferenceService {
         talk.coSpeakerIds = coSpeakerDao.findByTalk(talk.id);
     }
 
+    /**
+     * Same as {@link #enrich} for every talk, with one query for the ratings and one for the co-speakers instead of
+     * two per talk (6,500 talks took 25 s on production).
+     */
+    private void enrichAll(List<TalkDto> talks) {
+        List<Long> ids = new ArrayList<>();
+        for (TalkDto t : talks) {
+            ids.add(t.id);
+        }
+        Map<Long, Map<String, Object>> ratings = ratingDao.statsByTalk(ids);
+        Map<Long, List<Long>> coSpeakers = coSpeakerDao.findByTalks(ids);
+        for (TalkDto t : talks) {
+            addRatings(t, ratings.getOrDefault(t.id, NO_RATINGS));
+            List<Long> co = coSpeakers.get(t.id);
+            t.coSpeakerIds = co == null ? new ArrayList<>() : co;
+        }
+    }
+
+    private static final Map<String, Object> NO_RATINGS = Map.of("cnt", 0, "total", 0);
+
     private void addRatings(TalkDto talk) {
-        Map<String, Object> stats = ratingDao.stats(talk.id);
+        addRatings(talk, ratingDao.stats(talk.id));
+    }
+
+    private void addRatings(TalkDto talk, Map<String, Object> stats) {
         int count = ((Number) stats.get("cnt")).intValue();
         long total = ((Number) stats.get("total")).longValue();
         talk.ratingCount = count;
@@ -386,10 +412,11 @@ public class ConferenceService {
 
     public Map<String, Object> statistics() {
         List<TalkDto> talks = listTalks(null, null);
+        Map<Long, String> speakers = speakerDao.namesById();
         Map<String, Integer> byFormat = new LinkedHashMap<>();
         Map<String, Integer> byLevel = new LinkedHashMap<>();
         Map<String, Integer> byStatus = new LinkedHashMap<>();
-        List<Long> speakersWithTalks = new ArrayList<>();
+        Set<Long> speakersWithTalks = new HashSet<>();
         int minutes = 0;
         double ratingSum = 0;
         int rated = 0;
@@ -397,7 +424,7 @@ public class ConferenceService {
             byFormat.put(t.format, byFormat.getOrDefault(t.format, 0) + 1);
             byLevel.put(t.level, byLevel.getOrDefault(t.level, 0) + 1);
             byStatus.put(t.status, byStatus.getOrDefault(t.status, 0) + 1);
-            if (!speakersWithTalks.contains(t.speakerId) && speakerDao.findById(t.speakerId) != null) {
+            if (speakers.containsKey(t.speakerId)) {
                 speakersWithTalks.add(t.speakerId);
             }
             minutes += t.durationMinutes;
