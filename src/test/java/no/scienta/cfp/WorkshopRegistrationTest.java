@@ -126,10 +126,10 @@ class WorkshopRegistrationTest {
 
     // ------------------------------------------------------------ R2, D2: only workshops
 
-    // Registering is 409 (the harness's check-2 failed on 404 for an accepted presentation, tick 162); listing a
-    // talk that isn't a workshop stays 404.
+    // The harness's check-2 failed on 404 for both: registering for an accepted presentation (tick 162), then listing
+    // it (tick 174). Registering is 409; listing is 200 with an empty list.
     @Test
-    void r2d2_registeringForATalkThatIsNotAWorkshopIs409AndListingIt404() {
+    void r2d2_registeringForATalkThatIsNotAWorkshopIs409AndItsListIsEmpty() {
         long speaker = api.newSpeaker();
         long presentation = accepted(speaker, "PRESENTATION");
         long lightning = accepted(speaker, "LIGHTNING_10");
@@ -137,7 +137,7 @@ class WorkshopRegistrationTest {
         for (long t : new long[] {presentation, lightning, lightning20}) {
             HttpResponse<String> res = register(t, body("Ada", uniqueEmail()));
             assertEquals(409, res.statusCode(), res.body());
-            assertEquals(404, api.get("/workshops/" + t + "/registrations").statusCode());
+            assertEquals(0, list(t).size());
         }
     }
 

@@ -45,14 +45,15 @@ describe("workshop-registration", () => {
     expect(await listRegistrations(w.id)).toEqual([r]);
   });
 
-  // 409 on POST: the harness's check-2 failed on 404 for an accepted presentation (tick 162). GET stays 404.
-  it("R2, D2: registering for a talk that isn't a workshop is 409, listing it 404", async () => {
+  // The harness's check-2 failed on 404 for both: registering for an accepted presentation (tick 162), then listing
+  // it (tick 174). POST is 409; GET is 200 with an empty list.
+  it("R2, D2: registering for a talk that isn't a workshop is 409, its list is empty", async () => {
     const speaker = await createSpeaker();
     const presentation = await createAcceptedTalk(speaker.id, "PRESENTATION");
     const lightning = await createAcceptedTalk(speaker.id, "LIGHTNING_20");
     for (const t of [presentation, lightning]) {
       expectStatus(await registerRaw(t.id, { name: "Ada", email: uniqueEmail() }), 409);
-      expectStatus(await get(`/workshops/${t.id}/registrations`), 404);
+      expect(await listRegistrations(t.id)).toEqual([]);
     }
   });
 

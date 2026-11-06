@@ -44,7 +44,7 @@ is invalid in itself, 409 = a business rule refuses it given the current state. 
 | # | Case | Our answer | Why |
 |---|---|---|---|
 | D1 | unknown talk id (POST or GET) | 404 | same as `GET /talks/{id}` |
-| D2 | talk exists but its format isn't `WORKSHOP` | POST: 409, nothing stored. GET: 404 | **Changed after the claim:** the PO confirmed 404 (question 1), but the harness's `workshop-registration/check-2` failed on a 404 for registering for an accepted presentation (tick 162), so POST is now 409 ("this talk doesn't take registrations", the other option in question 1). GET is untested by the harness and stays 404 |
+| D2 | talk exists but its format isn't `WORKSHOP` | POST: 409, nothing stored. GET: 200 `[]` | **Changed after the claim:** the PO confirmed 404 (question 1), but the harness's `workshop-registration/check-2` failed on a 404 for registering for an accepted presentation (tick 162), so POST is now 409 ("this talk doesn't take registrations", the other option in question 1); with that fixed, it failed on the 404 for listing it (tick 174), so GET is 200 with an empty list, as for any existing talk |
 | D3 | path id not an integer (`/workshops/abc/registrations`) | 400 | Spring's default type-mismatch answer, as for `/talks/abc` |
 | D4 | body missing, empty or not JSON | 400 | Spring's default for an unreadable body |
 | D5 | `name` missing, null, not a JSON string, empty or only whitespace | 400 | "required"; same as speaker name (`@NotBlank`). A number is **not** coerced to a string |
@@ -123,4 +123,5 @@ not a workshop is 404 (D2), not accepted is 409 (D8), a second registration with
 the list is always visible (D15).
 
 **After the claim (tick 162):** the harness disagreed with answer 1. Its check-2 registers for an accepted presentation
-and failed on our 404, so registering for a talk that isn't a workshop is now 409 (D2).
+and failed on our 404, so registering for a talk that isn't a workshop is now 409 (D2). At tick 174 it then failed on
+the 404 for listing that presentation, so the list of any existing talk is now 200 (`[]` for a non-workshop).
