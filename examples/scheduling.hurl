@@ -74,12 +74,20 @@ PUT {{base_url}}/talks/{{ws_id}}/status
 { "status": "ACCEPTED" }
 HTTP 200
 
-# D1: unknown room / slot
+# D1: unknown / wrong-case room / slot
 PUT {{base_url}}/programme/R9/S1
 { "talkId": {{a_id}} }
 HTTP 404
 
 PUT {{base_url}}/programme/R1/S6
+{ "talkId": {{a_id}} }
+HTTP 404
+
+PUT {{base_url}}/programme/r1/S1
+{ "talkId": {{a_id}} }
+HTTP 404
+
+PUT {{base_url}}/programme/R1/s1
 { "talkId": {{a_id}} }
 HTTP 404
 
@@ -200,12 +208,14 @@ PUT {{base_url}}/programme/R2/S1
 { "talkId": {{co_talk_id}} }
 HTTP 409
 
-# D11 / D12: delete and empty delete
+# D11 / D12: delete and empty delete (Entry includes fixed start/end)
 DELETE {{base_url}}/programme/R1/S1
 HTTP 200
 [Asserts]
 jsonpath "$.room" == "R1"
 jsonpath "$.slot" == "S1"
+jsonpath "$.start" == "09:00"
+jsonpath "$.end" == "10:00"
 jsonpath "$.talkId" == {{a_id}}
 
 GET {{base_url}}/programme/R1/S1

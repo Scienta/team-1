@@ -178,6 +178,32 @@ class ProgrammeTest {
         assertEquals(404, putBody("R9", "S1", "not json").statusCode());
     }
 
+    @Test
+    void d13_statusConflictBeatsCellOccupied() {
+        long accepted = acceptedTalk();
+        entry(put("R1", "S1", accepted));
+        long submitted = api.newTalk(api.newSpeaker(), "PRESENTATION").get("id").asLong();
+        // non-ACCEPTED into an occupied cell: status (D5) before occupancy (D7)
+        HttpResponse<String> res = put("R1", "S1", submitted);
+        assertEquals(409, res.statusCode(), res.body());
+        assertTrue(res.body().contains("ACCEPTED") || res.body().contains("only ACCEPTED"), res.body());
+        assertEntry(entry(get("R1", "S1")), "R1", "S1", "09:00", "10:00", accepted);
+    }
+
+    @Test
+    void d13_talkAlreadyElsewhereBeatsCellOccupied() {
+        long a = acceptedTalk();
+        long b = acceptedTalk();
+        entry(put("R1", "S1", a));
+        entry(put("R2", "S2", b));
+        // a is elsewhere and R2/S2 is occupied: same-talk-elsewhere (D8) before cell occupied (D7)
+        HttpResponse<String> res = put("R2", "S2", a);
+        assertEquals(409, res.statusCode(), res.body());
+        assertTrue(res.body().contains("already on the programme"), res.body());
+        assertEntry(entry(get("R1", "S1")), "R1", "S1", "09:00", "10:00", a);
+        assertEntry(entry(get("R2", "S2")), "R2", "S2", "10:15", "11:15", b);
+    }
+
     // ------------------------------------------------------------ R3, D5: only ACCEPTED
 
     @Test
@@ -296,6 +322,17 @@ class ProgrammeTest {
     }
 
     @Test
+    void d9r7_rePutSameCellAfterWithdrawIsStill200() {
+        long speaker = api.newSpeaker();
+        long talk = acceptedTalkOf(speaker, "PRESENTATION");
+        entry(put("R1", "S1", talk));
+        Api.body(api.post("/talks/" + talk + "/withdraw", "{\"speakerId\":" + speaker + "}"), 200);
+        // D9 before status: same talk, same cell stays 200 even though talk is no longer ACCEPTED
+        assertEntry(entry(put("R1", "S1", talk)), "R1", "S1", "09:00", "10:00", talk);
+        assertEntry(entry(get("R1", "S1")), "R1", "S1", "09:00", "10:00", talk);
+    }
+
+    @Test
     void r7d15_coSpeakerAddedAfterScheduleDoesNotRecheckClash() {
         long mainA = api.newSpeaker();
         long mainB = api.newSpeaker();
@@ -339,6 +376,90 @@ class ProgrammeTest {
             assertTrue(ok >= 1);
             assertEquals(winner, entry(get("R1", "S1")).get("talkId").asLong());
             entry(delete("R1", "S1"));
+        }
+    }
+
+    @Test
+    void r8_concurrentSameSpeakerAcrossRooms_neverBothPlaced() {
+        for (int round = 0; round < 8; round++) {
+            long speaker = api.newSpeaker();
+            long a = acceptedTalkOf(speaker, "PRESENTATION");
+            long b = acceptedTalkOf(speaker, "LIGHTNING_20");
+            List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                sent.add(api.sendAsync("PUT", "/programme/R1/S1", "{\"talkId\":" + a + "}"));
+                sent.add(api.sendAsync("PUT", "/programme/R2/S1", "{\"talkId\":" + b + "}"));
+            }
+            int okA = 0;
+            int okB = 0;
+            for (CompletableFuture<HttpResponse<String>> f : sent) {
+                HttpResponse<String> res = f.join();
+                assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
+                if (res.statusCode() == 200) {
+                    long id = Api.json(res.body()).get("talkId").asLong();
+                    if (id == a) {
+                        okA++;
+                    } else if (id == b) {
+                        okB++;
+                    } else {
+                        throw new AssertionError("unexpected talkId " + id);
+                    }
+                }
+            }
+            // Exactly one of the two talks may win the slot (R6); the other must never also be placed.
+            assertTrue(okA >= 1 || okB >= 1);
+            assertTrue(okA == 0 || okB == 0, "both speaker's talks placed in S1: A=" + okA + " B=" + okB);
+            int placed = 0;
+            if (get("R1", "S1").statusCode() == 200) {
+                placed++;
+                assertEquals(a, entry(get("R1", "S1")).get("talkId").asLong());
+                entry(delete("R1", "S1"));
+            }
+            if (get("R2", "S1").statusCode() == 200) {
+                placed++;
+                assertEquals(b, entry(get("R2", "S1")).get("talkId").asLong());
+                entry(delete("R2", "S1"));
+            }
+            assertEquals(1, placed);
+        }
+    }
+
+    @Test
+    void r8_concurrentSameTalkIntoTwoSlots_atMostOnePlacement() {
+        for (int round = 0; round < 8; round++) {
+            long talk = acceptedTalk();
+            List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                sent.add(api.sendAsync("PUT", "/programme/R1/S1", "{\"talkId\":" + talk + "}"));
+                sent.add(api.sendAsync("PUT", "/programme/R2/S2", "{\"talkId\":" + talk + "}"));
+            }
+            int ok = 0;
+            String winnerCell = null;
+            for (CompletableFuture<HttpResponse<String>> f : sent) {
+                HttpResponse<String> res = f.join();
+                assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
+                if (res.statusCode() == 200) {
+                    JsonNode e = Api.json(res.body());
+                    String cell = e.get("room").asText() + "/" + e.get("slot").asText();
+                    if (winnerCell == null) {
+                        winnerCell = cell;
+                    }
+                    // D9: same talk same cell again is 200; never a different cell
+                    assertEquals(winnerCell, cell);
+                    ok++;
+                }
+            }
+            assertTrue(ok >= 1);
+            int placed = 0;
+            if (get("R1", "S1").statusCode() == 200) {
+                placed++;
+                entry(delete("R1", "S1"));
+            }
+            if (get("R2", "S2").statusCode() == 200) {
+                placed++;
+                entry(delete("R2", "S2"));
+            }
+            assertEquals(1, placed);
         }
     }
 }
