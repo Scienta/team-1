@@ -273,14 +273,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Talk'
+        '400':
+          description: The speaker is the talk's main speaker
         '404':
           description: Talk or speaker not found
         '409':
-          description: The talk already has two co-speakers, or the speaker is the main speaker
+          description: The talk already has two co-speakers
     delete:
       tags: [co-speakers]
       summary: Remove a co-speaker
-      description: Removing a speaker who isn't a co-speaker changes nothing.
+      description: Removing a speaker who isn't a co-speaker of the talk (also removing one twice) is 404 and changes nothing.
       operationId: removeCoSpeaker
       responses:
         '200':
@@ -290,7 +292,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Talk'
         '404':
-          description: Talk or speaker not found
+          description: Talk or speaker not found, or the speaker isn't a co-speaker of the talk
 
   /admin/stats:
     get:

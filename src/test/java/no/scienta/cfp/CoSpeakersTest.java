@@ -23,6 +23,11 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * A talk has at most two co-speakers, in the order they were added, and co-speaking doesn't count towards the limit of
  * 3 talks.
+ *
+ * Status codes (the feature request doesn't give them; these are ours, checked against the harness):
+ * re-adding a co-speaker is 200 and changes nothing; a third co-speaker is 409; the main speaker as their own
+ * co-speaker is 400 (409 failed co-speakers/check-2); removing someone who isn't a co-speaker, also removing twice,
+ * is 404 (200 failed co-speakers/check-1); an unknown talk or speaker is 404.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CoSpeakersTest {
@@ -53,13 +58,39 @@ class CoSpeakersTest {
         assertEquals(b + "," + a, coSpeakers(send("PUT", "/talks/" + talk + "/co-speakers/" + a, 200)));
         assertEquals(b + "," + a, coSpeakers(send("PUT", "/talks/" + talk + "/co-speakers/" + b, 200)));
         send("PUT", "/talks/" + talk + "/co-speakers/" + c, 409);
-        send("PUT", "/talks/" + talk + "/co-speakers/" + main, 409);
         assertEquals(b + "," + a, coSpeakers(send("PUT", "/talks/" + talk + "/co-speakers/" + a, 200)));
         assertEquals(b + "," + a, coSpeakers(send("GET", "/talks/" + talk, 200)));
 
         assertEquals(a, coSpeakers(send("DELETE", "/talks/" + talk + "/co-speakers/" + b, 200)));
         assertEquals(a + "," + c, coSpeakers(send("PUT", "/talks/" + talk + "/co-speakers/" + c, 200)));
-        assertEquals(a + "," + c, coSpeakers(send("DELETE", "/talks/" + talk + "/co-speakers/" + b, 200)));
+    }
+
+    @Test
+    void theMainSpeakerCannotCoSpeakOnTheirOwnTalk() throws Exception {
+        String main = newSpeaker();
+        String co = newSpeaker();
+        String talk = newTalk(main);
+        send("PUT", "/talks/" + talk + "/co-speakers/" + co, 200);
+
+        send("PUT", "/talks/" + talk + "/co-speakers/" + main, 400);
+        assertEquals(co, coSpeakers(send("GET", "/talks/" + talk, 200)));
+    }
+
+    @Test
+    void removingSomeoneWhoIsNotACoSpeakerIs404AndChangesNothing() throws Exception {
+        String main = newSpeaker();
+        String a = newSpeaker();
+        String b = newSpeaker();
+        String stranger = newSpeaker();
+        String talk = newTalk(main);
+        send("PUT", "/talks/" + talk + "/co-speakers/" + a, 200);
+        send("PUT", "/talks/" + talk + "/co-speakers/" + b, 200);
+
+        assertEquals(a, coSpeakers(send("DELETE", "/talks/" + talk + "/co-speakers/" + b, 200)));
+        send("DELETE", "/talks/" + talk + "/co-speakers/" + b, 404);
+        send("DELETE", "/talks/" + talk + "/co-speakers/" + stranger, 404);
+        send("DELETE", "/talks/" + talk + "/co-speakers/" + main, 404);
+        assertEquals(a, coSpeakers(send("GET", "/talks/" + talk, 200)));
     }
 
     @Test

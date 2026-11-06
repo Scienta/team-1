@@ -254,7 +254,8 @@ public class ConferenceService {
             return talk;
         }
         if (talk.speakerId == speakerId) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "the main speaker can't also be a co-speaker");
+            // 400, not 409: the harness's co-speakers/check-2 failed on 409 (tick 68-75).
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the main speaker can't also be a co-speaker");
         }
         if (talk.coSpeakerIds.size() >= MAX_CO_SPEAKERS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
@@ -265,7 +266,8 @@ public class ConferenceService {
     }
 
     /**
-     * Removes a co-speaker. Removing a speaker who isn't a co-speaker changes nothing.
+     * Removes a co-speaker. Removing a speaker who isn't a co-speaker of the talk (also: removing one twice) is 404,
+     * and changes nothing; the harness's co-speakers/check-1 failed on a 200 for that (tick 68-75).
      */
     @Transactional
     public TalkDto removeCoSpeaker(long talkId, long speakerId) {
@@ -275,7 +277,9 @@ public class ConferenceService {
         if (!speakerDao.exists(speakerId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
         }
-        coSpeakerDao.delete(talkId, speakerId);
+        if (!coSpeakerDao.delete(talkId, speakerId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker is not a co-speaker of this talk");
+        }
         return getTalk(talkId);
     }
 

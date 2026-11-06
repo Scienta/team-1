@@ -52,12 +52,12 @@ HTTP 200
 [Asserts]
 jsonpath "$.coSpeakerIds" count == 2
 
-# A third is refused, so is the main speaker
+# A third is refused (409), so is the main speaker (400)
 PUT {{base_url}}/talks/{{talk_id}}/co-speakers/{{co3_id}}
 HTTP 409
 
 PUT {{base_url}}/talks/{{talk_id}}/co-speakers/{{main_id}}
-HTTP 409
+HTTP 400
 
 # Shown on GET, but not in the co-speaker's own talk list
 GET {{base_url}}/talks/{{talk_id}}
@@ -76,3 +76,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.coSpeakerIds" count == 1
 jsonpath "$.coSpeakerIds[0]" == {{co1_id}}
+
+# Removing again: no longer a co-speaker
+DELETE {{base_url}}/talks/{{talk_id}}/co-speakers/{{co2_id}}
+HTTP 404
