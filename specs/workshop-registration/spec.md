@@ -1,7 +1,7 @@
 # Workshop registration with capacity: our spec
 
 Feature request: `specs/workshop-registration/request.md` (harness slug `workshop-registration`, V 2, released at tick 67).
-Status: draft
+Status: PO confirmed (questions 1–4), ready to implement once acceptance is on main
 
 Depends on the acceptance state machine (`specs/acceptance/spec.md` on `origin/feat/acceptance`, not on `main`
 yet). Status values used here are theirs: `SUBMITTED`, `ACCEPTED`, `REJECTED`, `WAITLISTED`, `WITHDRAWN`. A talk
@@ -44,20 +44,20 @@ is invalid in itself, 409 = a business rule refuses it given the current state. 
 | # | Case | Our answer | Why |
 |---|---|---|---|
 | D1 | unknown talk id (POST or GET) | 404 | same as `GET /talks/{id}` |
-| D2 | talk exists but its format isn't `WORKSHOP` (POST or GET) | 404 | the path names a *workshop*; a presentation is no workshop. **PO question 1** |
+| D2 | talk exists but its format isn't `WORKSHOP` (POST or GET) | 404 | the path names a *workshop*; a presentation is no workshop. **PO confirmed** (question 1) |
 | D3 | path id not an integer (`/workshops/abc/registrations`) | 400 | Spring's default type-mismatch answer, as for `/talks/abc` |
 | D4 | body missing, empty or not JSON | 400 | Spring's default for an unreadable body |
 | D5 | `name` missing, null, not a JSON string, empty or only whitespace | 400 | "required"; same as speaker name (`@NotBlank`). A number is **not** coerced to a string |
 | D6 | `email` missing, null, not a JSON string, empty or only whitespace | 400 | "required" |
 | D7 | `email` present but not an email (`Utils.isValidEmail` false: no `@`, no `.` after the `@`) | 400 | same check and status as speaker registration |
-| D8 | workshop exists but isn't `ACCEPTED` (`SUBMITTED`, `WAITLISTED`, `REJECTED`, `WITHDRAWN`) | 409, nothing stored | R3; the state refuses it and acceptance would make it pass. **PO question 2** |
-| D9 | the same email (case-insensitive, surrounding whitespace ignored) registers again for the same workshop | 409, nothing stored; the first registration keeps its name and place | R6; same as a duplicate speaker email (409). **PO question 3** |
+| D8 | workshop exists but isn't `ACCEPTED` (`SUBMITTED`, `WAITLISTED`, `REJECTED`, `WITHDRAWN`) | 409, nothing stored | R3; the state refuses it and acceptance would make it pass. **PO confirmed** (question 2) |
+| D9 | the same email (case-insensitive, surrounding whitespace ignored) registers again for the same workshop | 409, nothing stored; the first registration keeps its name and place | R6; same as a duplicate speaker email (409). **PO confirmed** (question 3) |
 | D10 | 21st registration (workshop already has 20) | 409, nothing stored | R5; capacity is a state-dependent rule like the 3-talk limit |
 | D11 | duplicate email on a full workshop | 409 | both checks give 409; which one is checked first doesn't matter to the caller |
 | D12 | email compare | `lower(trim(email))`; stored and returned untrimmed and in original case | R6 + R8. Trimming only makes the duplicate check stricter |
 | D13 | `name` stored as sent (not trimmed) | as sent | "as typed", like speakers; the request doesn't ask for normalising |
 | D14 | unknown extra fields in the body (`{"name","email","phone"}`) | ignored | Spring Boot default; same as the other POSTs |
-| D15 | GET on a workshop that isn't (or is no longer) `ACCEPTED` | 200 with its list (`[]` if nobody registered) | R4 requires the list of a withdrawn workshop; listing never depends on status. **PO question 4** |
+| D15 | GET on a workshop that isn't (or is no longer) `ACCEPTED` | 200 with its list (`[]` if nobody registered) | R4 requires the list of a withdrawn workshop; listing never depends on status. **PO confirmed** (question 4) |
 | D16 | registration order | ascending `Registration.id`, which is assigned while the workshop row is locked (see Concurrency), so id order = commit order | R9 |
 | D17 | the workshop's own speaker or a co-speaker registers as attendee | allowed (counts towards the 20) | registrations aren't linked to speakers; the request doesn't forbid it |
 | D18 | order of checks (POST) | 404 talk/not-workshop → 400 body → 409 not accepted → 409 duplicate → 409 full | path, input, rules; as acceptance D12 |
@@ -117,3 +117,7 @@ Ranked by how likely a wrong guess fails a harness check. Answers go here, with 
    already done and answer with their existing registration?
 4. Can the organisers see the list of a workshop that isn't accepted (empty, or the people registered before it was
    withdrawn)? We say yes, always.
+
+**Answers (2026-11-06, asked by Sindre Mehus):** the product owner confirmed our answers to all four as written:
+not a workshop is 404 (D2), not accepted is 409 (D8), a second registration with the same email is 409 (D9), and
+the list is always visible (D15).
