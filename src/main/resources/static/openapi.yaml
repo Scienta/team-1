@@ -302,7 +302,7 @@ paths:
       summary: Accept, reject or waitlist a talk
       description: |
         From SUBMITTED or WAITLISTED. ACCEPTED and REJECTED are final: any decision on them,
-        the same one included, is 409. Waitlisting a waitlisted talk is 200 and changes nothing. Accepting
+        the same one included, is 409. Waitlisting a waitlisted talk is 409 too. Accepting
         needs ratings from at least two different reviewers.
       operationId: decideTalk
       parameters:

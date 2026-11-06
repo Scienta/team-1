@@ -117,6 +117,13 @@ one the harness doesn't use. Seen before the claim: the harness's own traffic in
 registering for talks before the claim, but only on the old version (404 from a missing route), so
 nothing told us which code it wanted.
 
+**acceptance, ticks 162–163: waitlisting twice.** After the D7 fix (`297f7d6`) check-3 was OK for ten
+ticks, then FAULTY again: it waitlisted a talk and waitlisted it again, and we answered the repeat with
+200 (D6, also "idempotent" from the PO). check-3 picks the repeated decision at random, so it only
+failed when it drew `WAITLISTED`. Now any repeat of the same decision is 409. Lesson: an intermittent
+FAULTY right after a fix is a sibling case of the same rule, not flakiness; we should have dropped D6
+together with D7.
+
 ## 5. Reusable artifacts
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage

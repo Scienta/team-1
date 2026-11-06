@@ -91,7 +91,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.status" == "SUBMITTED"
 
-# R2: waitlist, D6: waitlist again is 200
+# R2: waitlist, D6: waitlist again is 409
 PUT {{base_url}}/talks/{{a_id}}/status
 { "status": "WAITLISTED" }
 HTTP 200
@@ -100,6 +100,9 @@ jsonpath "$.status" == "WAITLISTED"
 
 PUT {{base_url}}/talks/{{a_id}}/status
 { "status": "WAITLISTED" }
+HTTP 409
+
+GET {{base_url}}/talks/{{a_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.status" == "WAITLISTED"

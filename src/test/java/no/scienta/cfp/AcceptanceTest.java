@@ -118,10 +118,10 @@ class AcceptanceTest {
     }
 
     @Test
-    void d6_waitlistingAWaitlistedTalkIs200AndUnchanged() {
+    // D6: harness acceptance/check-3 failed on a 200 for this (tick 162-163)
+    void d6_waitlistingAWaitlistedTalkIs409AndUnchanged() {
         long w = waitlisted(talk());
-        expect("WAITLISTED", decide(w, "WAITLISTED"));
-        assertEquals("WAITLISTED", status(w));
+        refused(409, decide(w, "WAITLISTED"), w, "WAITLISTED");
     }
 
     @Test

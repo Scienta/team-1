@@ -25,7 +25,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Acceptance: body missing, not JSON, or not a JSON object | `400` |
 | Acceptance: decision not allowed from the current status (ACCEPTED/REJECTED/WITHDRAWN are final) | `409` |
 | Acceptance: `ACCEPTED` with fewer than 2 distinct reviewers (a reviewer rating twice counts once) | `409` |
-| Acceptance: `WAITLISTED` on a waitlisted talk | `200`, unchanged (PO confirmed) |
+| Acceptance: `WAITLISTED` on a waitlisted talk | `409`, unchanged (not 200 — harness acceptance/check-3) |
 | Acceptance: repeating a final decision (`ACCEPTED` again, `REJECTED` again) | `409`, unchanged (not 200 — harness acceptance/check-3, check-5) |
 | Acceptance: withdraw `speakerId` missing, null or not a whole number (string, decimal, boolean) | `400` |
 | Acceptance: withdraw by anyone but the main speaker (another speaker, a co-speaker, an unregistered id) | `403`, whatever the talk's status |
