@@ -14,14 +14,28 @@
 
 ## 1. Workflow
 
-From harness request to claim we follow `workflow/spec-to-claim.md`:
+From harness request to claim we run `/feature <slug>` in Claude Code (`.claude/skills/feature/SKILL.md`; the
+process for people, with a diagram, is `workflow/feature-process.md`). It stops wherever a person is needed:
 
-1. Refresh the spec into `workflow/specs/<slug>.md`
-2. Write status/edge decisions in `workflow/specs/<slug>-decisions.md` (template: `workflow/templates/decisions.md`)
-3. Implement + unit tests + `examples/<slug>.hurl`
-4. Review/extend `black-box-tests/` (Vitest) whenever the HTTP API changes — rule in `.claude/rules/black-box-api.md`
-5. Human review with `workflow/review-checklist.md`
-6. Deploy via push to `main`, verify feedback/logs, then a person claims
+0. **Is it free?** No `feat/<slug>` branch on origin, not claimed, not merged (`.claude/rules/feature-workflow.md`).
+1. **Branch and mark it taken:** push `feat/<slug>` with the request as released (`specs/<slug>/request.md`). Pushing a
+   `feat/` branch doesn't deploy; it's how teammates see the feature is taken.
+2. **Spec:** the `spec-writer` agent (`.claude/agents/spec-writer.md`) writes `specs/<slug>/spec.md` from
+   `workflow/templates/feature-spec.md`: rules R1.., a decision table for everything the request leaves open, and at
+   most five questions for the product owner.
+3. **Person:** asks the PO; answers go into the spec as "PO confirmed".
+4. **Implement:** the `implementer` agent (`.claude/agents/implementer.md`) works test-first, every test citing a rule
+   id, plus `examples/<slug>.hurl` and `black-box-tests/` coverage (`.claude/rules/black-box-api.md`).
+5. **Review:** a fresh, read-only `reviewer` agent (`.claude/agents/reviewer.md`) judges only the request, the spec,
+   the diff and its own test run.
+6. **Triage:** the same implementer agrees or rejects each finding with a reason (`specs/<slug>/review.md`).
+7. **PR** from `workflow/templates/pr.md` (`specs/<slug>/pr.md`): rule-to-test table, triage, before-claiming checklist.
+8. **Person merges** (deploys; the deploy job `needs` the tests), then the live service is checked (`/health` SHA,
+   Hurl and black-box on TEAM_URL, no 5xx in the logs, every claimed check OK) and **a person claims**.
+
+Specs and agents ran this for spring-boot-4, acceptance, workshop-registration, scheduling and ratings-cr; every
+`specs/<slug>/` folder holds its request, spec, review triage and PR text. After the game, `workflow/retro.md` and
+`workflow/harness-heuristics.md` (PR #14) feed what the harness taught us back into the three agents.
 
 Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.claude/rules/` (including black-box API coverage).
 
@@ -29,7 +43,23 @@ A pull request is ready only when both PR checks are green: `tests` (`.github/wo
 
 ## 2. How we reviewed agent output
 
-- Humans run `workflow/review-checklist.md` against the harness request plus our decisions file
+- A fresh, read-only `reviewer` agent per feature, against the request and our spec (`specs/<slug>/review.md` holds
+  each triage). On spring-boot-4 it caught that trailing slashes, which Spring 5 matched on *every* URL, had only been
+  restored for `/speakers/**`: `GET /talks/1/` had silently become 404. Fixed on all paths with a test that failed
+  first, and the before/after script gained 18 slash requests.
+- spring-boot-4 (2.7 → 4.1.2, Java 11 → 25) was proven by an old-vs-new comparison: the same 122 requests against the
+  2.7 image (as production) and the 4.x image on fresh databases. When the PO then required error bodies to be
+  *byte-identical* (framework-written `message` texts included), 22 recorded 2.7 error bodies became a test
+  (`LegacyErrorBodiesTest`) that failed 20/22 first; in the end 3 lines differed: the two `/actuator/info` versions
+  and one Jackson parse-error column number (listed for the PO in `specs/spring-boot-4/evidence.md`).
+- The deploy's test gate (added with the `/feature` workflow: the deploy job `needs: tests`) caught a broken `main` in
+  the last minutes: #12 (scheduling DELETE → 204) and #11 (programme-export, whose concurrency test only allowed
+  200/404/409) were each green on their own PR, but together failed `ProgrammeExportTest`, so the deploy of `950d73b`
+  was skipped and production kept serving. One-line test fix in #15.
+- Performance (`fix/talk-list-performance`, #8): `GET /talks` and `/admin/stats` took 25–35 s on production data
+  (N+1 queries, ~6,500 talks), which made the black-box suite time out against TEAM_URL. Now 4–6 queries and under
+  0.25 s, responses byte-identical (diffed on a 7,000-talk database). The logs showed the harness only ever lists
+  one speaker's talks, so this protected our own pre-claim checks rather than harness checks.
 - Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL,
   on PRs both `tests` (`.github/workflows/tests.yml`, Java build and tests) and `black-box`
   (`.github/workflows/black-box.yml`) must be green before the PR is ready, harness `/feedback` and timeline for FAULTY checks
@@ -87,8 +117,14 @@ A pull request is ready only when both PR checks are green: `tests` (`.github/wo
 | co-speakers | claimed | 67 | Implementation `6319fc6` with `CoSpeakersTest` (6 tests, incl. concurrent adds) and `examples/co-speakers.hurl`; the harness's checks hadn't yet run against it. *(Claimer: add what else you checked.)* Checks 1 and 2 were FAULTY from tick 68, see section 4. |
 | acceptance | claimed | 140 | PR #5 merged as `fb2e37f`, `/health` on that SHA; `./mvnw package` 85 tests green; `examples/*.hurl` green on TEAM_URL (84 requests); `black-box` Vitest workflow green on the PR; no 5xx in the logs since the deploy; all other claimed checks OK. Spec PO confirmed (4 answers). Checks 3 and 5 FAULTY from tick 141/142, see section 4. |
 | workshop-registration | claimed | 161 | PR #6 merged as `3200676`, deploy green (tests gate it), `/health` on that SHA; `./mvnw package` 116 tests green (31 for this feature, each citing its rule; a 60-request rush gives exactly 20×201, and removing the row lock makes a rush test fail with 21); independent reviewer: no blockers, 3 nits fixed (`specs/workshop-registration/review.md`); `examples/workshop-registration.hurl` green on TEAM_URL (77 requests); no 5xx in the logs since the deploy; the harness's own registrations got 201/409/200 from the new version; all other claimed checks OK at tick 156. Spec PO confirmed (4 answers). |
+| spring-boot-4 | claimed | 184 | PR #3 squash-merged as `244682a`, deploy green (tests gate); on TEAM_URL `/health` on that SHA and `/actuator/info` `springBoot 4.1.2`, `springFramework 7.0.10`, `java 25.0.5` read from the runtime; `examples/run.sh` 7 files / 170 requests green; 0 responses with a 5xx status in the logs since the deploy; harness: every claimed check OK at tick 171. Before merge: 153 tests on Java 25, black-box 110/110, two reviewer rounds (`specs/spring-boot-4/review.md`), 122-request old-vs-new diff (`specs/spring-boot-4/evidence.md`). Both checks OK from the claim to the end. |
+| scheduling | claimed | 198 | *(Claimer: add the evidence you held.)* Checks FAULTY from tick 199 until the fix `7ee8986` (#12) was live at tick ~213, see section 4. |
+| ratings-cr | not claimed | – | Spec (PO confirmed), implementation and tests ready ~15:56 (#13, merged `57a218f`); its deploy was first superseded by #11's and then skipped by the test gate (see section 2), so it wasn't live before the game ended at 16:05. |
+| submission-cap-cr | skipped | – | Released tick 180; not started: a concurrency-heavy change that couldn't be specced, built, reviewed and deployed before the end. |
+| programme-export | not claimed | – | #11 merged as `950d73b` at ~15:59; same skipped deploy as ratings-cr. |
 
 Score at workflow setup (tick ~2): total 12, all base checks OK, service not down.
+Final score (tick 218): **1,309.15** (earned 1,465.05, bled 155.90); 8 features claimed, all checks OK at the end.
 
 ## 4. What the harness caught that we didn't
 
@@ -152,7 +188,7 @@ the removed `Entry`, D12) failed the check right there. So check-2 was OK at tic
 cell happened to be empty, and FAULTY at 200 and 202. Check-1 failed on `PUT` with an unknown `talkId`,
 where we answered 404 (D4). Changed on `fix/scheduling-harness`: DELETE is 204 with no body, and an
 unknown `talkId` is 400 (as an unknown `speakerId` is on `POST /talks`). Both are our reading of the
-request; the harness only says what it doesn't want. Not yet deployed, so not yet confirmed by the harness.
+request; the harness only says what it doesn't want. Merged as `7ee8986` (#12) and live just before tick 213; every scheduling check OK from tick 214 to the end, so both readings were what the harness wanted.
 
 Why our review missed it: D12 and D4 were two of the guesses the spec had flagged for the product owner
 (Q2 asked about DELETE in so many words), and the team went ahead without answers. Spec, `ProgrammeTest`,
@@ -165,10 +201,17 @@ DELETE the request gives no response for, 204 is the conventional reading.
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage
 - `black-box-tests/` — Vitest HTTP suite + `decisions.md` + `black-box.yml` (pull requests and push to `main`)
 - `.github/workflows/tests.yml` — PR-only Java build and tests (`./mvnw -B package`). With `black-box.yml`, both checks must be green before a PR is ready
-- `workflow/spec-to-claim.md` — end-to-end process
-- `workflow/review-checklist.md` — review rubric
-- `workflow/templates/decisions.md` — turn a feature request into a real spec
-- `workflow/specs/` — cached harness requests for offline/agent use
+- `.claude/skills/feature/SKILL.md` — `/feature <slug>`: the whole chain from request to PR, with the person steps
+- `.claude/agents/spec-writer.md`, `implementer.md`, `reviewer.md` — the three roles (the reviewer is read-only and
+  starts fresh, so it isn't anchored on the implementer's reasoning)
+- `workflow/feature-process.md` — the process for people, with the diagram and why each step exists
+- `workflow/templates/feature-spec.md`, `workflow/templates/pr.md` — spec (rules, decision table, PO questions) and PR
+  (rule-to-test table, triage, before-claiming checklist)
+- `.claude/rules/feature-workflow.md` — check `feat/<slug>` on origin before starting; never push `main` without a person
+- `workflow/retro.md`, `workflow/harness-heuristics.md` (PR #14) — every post-claim FAULTY check with root cause, and
+  H1–H20: what the harness probes and expects, which the agents now check decisions against
+- `.github/workflows/deploy.yml` — tests gate the deploy (`needs: tests`)
+- `specs/<slug>/` — per feature: request as released, our spec, review triage, PR text, evidence
 
 ## 6. One thing we'd do differently
 

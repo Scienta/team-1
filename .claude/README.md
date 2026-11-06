@@ -11,4 +11,4 @@ don't create a `.claude/CLAUDE.md` as well.
 
 At 17:00, adding or changing something in `.claude/` or `workflow/` counts towards being eligible
 to win; this README on its own doesn't, and neither do the root `AGENTS.md` and `CLAUDE.md`. See
-`REVIEW.md`.
+`team-1-REVIEW.md`.

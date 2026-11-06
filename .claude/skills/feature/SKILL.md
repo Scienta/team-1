@@ -82,5 +82,5 @@ into the PR for a person to decide.
 When asked: wait for the deploy (`curl $TEAM_URL/health` shows the merge SHA), run
 `hurl --test --variable base_url=$TEAM_URL examples/<slug>.hurl`, read
 `.github/fagdag/logs.sh --tail 100` for 5xx, and check the harness feedback for all claimed features.
-Report the evidence. A **person** claims on the harness; then add the claim-log row to `REVIEW.md`
+Report the evidence. A **person** claims on the harness; then add the claim-log row to `team-1-REVIEW.md`
 with the tick and that evidence (`.claude/rules/review-log.md`).
