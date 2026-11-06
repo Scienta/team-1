@@ -73,6 +73,11 @@ export async function postSpeakerRaw(body: unknown, path = "/speakers") {
   return post(path, body);
 }
 
+/** PUT /speakers/{id} (the admin UI's typo fix): name, email and bio. */
+export async function putSpeakerRaw(id: number, body: unknown) {
+  return put(`/speakers/${id}`, body);
+}
+
 export async function postTalkRaw(body: unknown) {
   return post("/talks", body);
 }

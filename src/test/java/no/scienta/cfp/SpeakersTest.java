@@ -144,6 +144,31 @@ class SpeakersTest {
     }
 
     @Test
+    void concurrentUpdatesToOneEmailHaveOneWinnerAndNoServerError() throws Exception {
+        String email = "move-" + UUID.randomUUID() + "@example.com";
+        List<Long> ids = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            ids.add(Api.body(register("Mover " + i, "mover-" + i + "-" + UUID.randomUUID() + "@example.com"), 201)
+                    .get("id").asLong());
+        }
+        List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i++) {
+            String variant = i % 2 == 0 ? email : email.toUpperCase();
+            sent.add(http.sendAsync(request("PUT", "/speakers/" + ids.get(i), speaker("Mover " + i, variant)),
+                    HttpResponse.BodyHandlers.ofString()));
+        }
+        int updated = 0;
+        for (CompletableFuture<HttpResponse<String>> f : sent) {
+            HttpResponse<String> res = f.join();
+            assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
+            if (res.statusCode() == 200) {
+                updated++;
+            }
+        }
+        assertEquals(1, updated);
+    }
+
+    @Test
     void searchMatchesNamesRegardlessOfCase() throws Exception {
         String name = "Lovelace" + UUID.randomUUID().toString().substring(0, 8);
         assertEquals(201, register("Ada " + name, "ada-" + UUID.randomUUID() + "@example.com").statusCode());
