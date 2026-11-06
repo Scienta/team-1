@@ -129,12 +129,10 @@ HTTP 200
 jsonpath "$.id" == {{a_id}}
 jsonpath "$.status" == "ACCEPTED"
 
-# D7: accepting again is 200, a different decision is 409
+# D7: the decision is final: accepting again is 409, so is a different decision
 PUT {{base_url}}/talks/{{a_id}}/status
 { "status": "ACCEPTED" }
-HTTP 200
-[Asserts]
-jsonpath "$.status" == "ACCEPTED"
+HTTP 409
 
 PUT {{base_url}}/talks/{{a_id}}/status
 { "status": "REJECTED" }
@@ -219,11 +217,10 @@ HTTP 200
 [Asserts]
 jsonpath "$.status" == "REJECTED"
 
+# D7: rejecting again is 409 too
 PUT {{base_url}}/talks/{{b_id}}/status
 { "status": "REJECTED" }
-HTTP 200
-[Asserts]
-jsonpath "$.status" == "REJECTED"
+HTTP 409
 
 PUT {{base_url}}/talks/{{b_id}}/status
 { "status": "ACCEPTED" }

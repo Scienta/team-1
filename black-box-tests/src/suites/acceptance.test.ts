@@ -55,12 +55,12 @@ describe("acceptance", () => {
       ["WAITLISTED", "REJECTED", 200, "REJECTED"],
       ["WAITLISTED", "WAITLISTED", 200, "WAITLISTED"], // D6
       ["WAITLISTED", "withdraw", 200, "WITHDRAWN"],
-      ["ACCEPTED", "ACCEPTED", 200, "ACCEPTED"], // D7
+      ["ACCEPTED", "ACCEPTED", 409, "ACCEPTED"], // D7 (harness acceptance/check-3)
       ["ACCEPTED", "REJECTED", 409, "ACCEPTED"],
       ["ACCEPTED", "WAITLISTED", 409, "ACCEPTED"],
       ["ACCEPTED", "withdraw", 200, "WITHDRAWN"],
       ["REJECTED", "ACCEPTED", 409, "REJECTED"],
-      ["REJECTED", "REJECTED", 200, "REJECTED"], // D7
+      ["REJECTED", "REJECTED", 409, "REJECTED"], // D7 (harness acceptance/check-5)
       ["REJECTED", "WAITLISTED", 409, "REJECTED"],
       ["REJECTED", "withdraw", 409, "REJECTED"], // D11
       ["WITHDRAWN", "ACCEPTED", 409, "WITHDRAWN"], // R6
@@ -277,10 +277,10 @@ describe("acceptance", () => {
           ),
         );
         for (const res of results) expect([200, 409]).toContain(res.status);
-        // Repeating the winning decision is 200 (D7); the other decision is never 200.
-        const winners = new Set(results.filter((r) => r.status === 200).map((r) => (r.json as Talk).status));
-        expect(winners.size).toBe(1);
-        expect((await getTalk(talk.id)).status).toBe([...winners][0]);
+        // A decision is final, also the same one again (D7): exactly one request wins.
+        const winners = results.filter((r) => r.status === 200).map((r) => (r.json as Talk).status);
+        expect(winners.length).toBe(1);
+        expect((await getTalk(talk.id)).status).toBe(winners[0]);
       }
     });
 

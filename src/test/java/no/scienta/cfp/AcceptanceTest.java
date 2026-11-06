@@ -141,16 +141,15 @@ class AcceptanceTest {
     }
 
     @Test
-    void d7_repeatingAFinalDecisionIs200AndUnchanged() {
+    // D7: harness acceptance/check-3 and check-5 failed on a 200 for this (tick 141-142)
+    void d7_repeatingAFinalDecisionIs409AndUnchanged() {
         long a = ratedTalk();
         expect("ACCEPTED", decide(a, "ACCEPTED"));
-        expect("ACCEPTED", decide(a, "ACCEPTED"));
-        assertEquals("ACCEPTED", status(a));
+        refused(409, decide(a, "ACCEPTED"), a, "ACCEPTED");
 
         long r = talk();
         expect("REJECTED", decide(r, "REJECTED"));
-        expect("REJECTED", decide(r, "REJECTED"));
-        assertEquals("REJECTED", status(r));
+        refused(409, decide(r, "REJECTED"), r, "REJECTED");
     }
 
     // ------------------------------------------------------------ R3, D5: two different reviewers to accept
@@ -424,12 +423,11 @@ class AcceptanceTest {
                     if (winner == null) {
                         winner = s;
                     }
-                    // the same final decision again is 200 (D7); a different one never is
-                    assertEquals(winner, s, "two different final decisions both succeeded");
                     ok++;
                 }
             }
-            assertTrue(ok >= 1);
+            // a decision is final, also the same one again (D7): exactly one request wins
+            assertEquals(1, ok, "more than one decision succeeded");
             assertEquals(winner, status(t));
         }
     }

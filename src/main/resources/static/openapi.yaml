@@ -300,8 +300,8 @@ paths:
       tags: [acceptance]
       summary: Accept, reject or waitlist a talk
       description: |
-        From SUBMITTED or WAITLISTED. ACCEPTED and REJECTED are final; repeating the same
-        decision (or waitlisting a waitlisted talk) is 200 and changes nothing. Accepting
+        From SUBMITTED or WAITLISTED. ACCEPTED and REJECTED are final: any decision on them,
+        the same one included, is 409. Waitlisting a waitlisted talk is 200 and changes nothing. Accepting
         needs ratings from at least two different reviewers.
       operationId: decideTalk
       parameters:
