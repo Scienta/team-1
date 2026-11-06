@@ -56,3 +56,20 @@ CREATE TABLE IF NOT EXISTS co_speaker (
     speaker_id INTEGER NOT NULL,
     UNIQUE (talk_id, speaker_id)
 );
+
+-- 2026-11 programme scheduling. Occupied cells only; UNIQUE (talk_id) enforces one placement per talk.
+CREATE TABLE IF NOT EXISTS programme (
+    room    TEXT NOT NULL,
+    slot    TEXT NOT NULL,
+    talk_id BIGINT NOT NULL REFERENCES talk(id),
+    PRIMARY KEY (room, slot),
+    UNIQUE (talk_id)
+);
+
+-- One row per slot so concurrent edits to the same slot can take a row lock (R8).
+CREATE TABLE IF NOT EXISTS programme_slot (
+    slot TEXT PRIMARY KEY
+);
+
+INSERT INTO programme_slot (slot) VALUES ('S1'), ('S2'), ('S3'), ('S4'), ('S5')
+ON CONFLICT (slot) DO NOTHING;

@@ -5,7 +5,7 @@ info:
     Conference call-for-papers backend. Speakers register, submit talks, and
     reviewers rate them. Specs for the base features live on the fagdag harness;
     this document mirrors the implemented HTTP API for local exploration.
-  version: 1.4.2
+  version: 1.5.0
 servers:
   - url: http://localhost:8080
     description: Local
@@ -16,6 +16,7 @@ tags:
   - name: ratings
   - name: co-speakers
   - name: acceptance
+  - name: programme
   - name: admin
     description: Internal/admin helpers; not part of the public harness specs
 paths:
@@ -360,6 +361,73 @@ paths:
         '409':
           description: The talk is REJECTED or already WITHDRAWN
 
+  /programme/{room}/{slot}:
+    parameters:
+      - name: room
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Room' }
+      - name: slot
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Slot' }
+    put:
+      tags: [programme]
+      summary: Place an accepted talk in a room and slot
+      description: |
+        Only ACCEPTED talks. Workshops fit S4 only. One talk per cell; a talk appears
+        at most once. Speakers and co-speakers must not clash in the same slot across rooms.
+        Re-PUT of the same talk into the same cell is 200 (idempotent).
+      operationId: scheduleTalk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scheduling'
+            example:
+              talkId: 42
+      responses:
+        '200':
+          description: The programme entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '400':
+          description: Body missing or not JSON, or talkId isn't a whole number
+        '404':
+          description: Unknown room/slot, or talk not found
+        '409':
+          description: Not ACCEPTED, workshop in a short slot, cell occupied, talk already placed, or speaker clash
+    get:
+      tags: [programme]
+      summary: Look up what is in a room and slot
+      operationId: getProgrammeEntry
+      responses:
+        '200':
+          description: The programme entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '404':
+          description: Unknown room/slot, or the cell is empty
+    delete:
+      tags: [programme]
+      summary: Take the talk out of this room and slot
+      description: Returns the removed entry. The talk may be placed elsewhere afterwards.
+      operationId: unscheduleTalk
+      responses:
+        '200':
+          description: The entry that was removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '404':
+          description: Unknown room/slot, or the cell is empty
+
   /admin/stats:
     get:
       tags: [admin]
@@ -505,3 +573,33 @@ components:
           type: string
           description: US short time in UTC, e.g. 11/4/26, 1:05 PM
           example: '11/4/26, 1:05 PM'
+
+    Room:
+      type: string
+      enum: [R1, R2, R3]
+
+    Slot:
+      type: string
+      enum: [S1, S2, S3, S4, S5]
+
+    Scheduling:
+      type: object
+      required: [talkId]
+      properties:
+        talkId: { type: integer, format: int64 }
+
+    Entry:
+      type: object
+      required: [room, slot, start, end, talkId]
+      properties:
+        room: { $ref: '#/components/schemas/Room' }
+        slot: { $ref: '#/components/schemas/Slot' }
+        start:
+          type: string
+          description: Fixed start time for the slot, HH:mm
+          example: '13:30'
+        end:
+          type: string
+          description: Fixed end time for the slot, HH:mm
+          example: '15:30'
+        talkId: { type: integer, format: int64 }
