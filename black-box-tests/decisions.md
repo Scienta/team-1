@@ -7,6 +7,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Speaker / talk not found | `404` |
 | Invalid / missing speaker fields, invalid email, bio > 500 | `400` |
 | Duplicate email (any case) | `409` |
+| `PUT /speakers/{id}` to an email another speaker has (any case), also in a parallel rush | `409` (not 500); exactly one update wins |
 | Invalid talk format/level/title/speakerId | `400` |
 | Unknown speakerId on submit | `400` |
 | 4th talk for a speaker | `409` |

@@ -86,6 +86,11 @@ export async function postSpeakerRaw(body: unknown, path = "/speakers") {
   return post(path, body);
 }
 
+/** PUT /speakers/{id} (the admin UI's typo fix): name, email and bio. */
+export async function putSpeakerRaw(id: number, body: unknown) {
+  return put(`/speakers/${id}`, body);
+}
+
 export async function postTalkRaw(body: unknown) {
   return post("/talks", body);
 }
@@ -141,12 +146,16 @@ export async function createAcceptableTalk(
   return getTalk(talk.id);
 }
 
-/** A talk rated by two reviewers and accepted. Pass a format, or any NewTalkInput fields. */
+/**
+ * Acceptable talk already decided ACCEPTED.
+ * Second arg is a talk format (`"WORKSHOP"`) or a partial talk body (`{ format: "WORKSHOP" }`).
+ */
 export async function createAcceptedTalk(
   speakerId: number,
-  input: TalkFormat | Omit<NewTalkInput, "speakerId"> = {},
+  formatOrInput: TalkFormat | Omit<NewTalkInput, "speakerId"> = {},
 ): Promise<Talk> {
-  const talk = await createAcceptableTalk(speakerId, typeof input === "string" ? { format: input } : input);
+  const input = typeof formatOrInput === "string" ? { format: formatOrInput } : formatOrInput;
+  const talk = await createAcceptableTalk(speakerId, input);
   return decideTalk(talk.id, "ACCEPTED");
 }
 

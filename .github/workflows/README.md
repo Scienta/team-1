@@ -6,6 +6,7 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 | Workflow | File | When | Purpose |
 |----------|------|------|---------|
 | **deploy** | [`deploy.yml`](deploy.yml) | Push to `main`, or `workflow_dispatch` | Maven tests gate, then build/push image and roll out to Scaleway |
+| **tests** | [`tests.yml`](tests.yml) | Pull request opened, updated, or reopened | `./mvnw -B package`: Java build and tests. A PR is ready only when this and **black-box** are both green |
 | **black-box** | [`black-box.yml`](black-box.yml) | Pull request, or `workflow_dispatch` | Vitest HTTP suite against a job-local Postgres + jar |
 | **logs** | [`logs.yml`](logs.yml) | `workflow_dispatch` only | Print container logs from Scaleway Cockpit |
 
@@ -18,6 +19,13 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 - Concurrency group `deploy` — one rollout at a time; newer pushes wait.
 - Not the same as black-box: this gates **production deploy**, not PR merge (unless you also require
   checks in branch protection).
+
+## tests
+
+- Pull requests only (`opened`, `synchronize`, `reopened`). A new push to the same PR cancels the in-progress run.
+- `./mvnw -B package` on the runner's Docker (Testcontainers). Produces the jar and runs the Java tests.
+- Does not run `black-box-tests/`. That suite is the **black-box** workflow.
+- A PR is ready only when **tests** and **black-box** are both green (`.claude/skills/feature/SKILL.md`).
 
 ## black-box
 

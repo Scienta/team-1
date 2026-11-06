@@ -69,12 +69,18 @@ property order (D8), trailing slashes on every path (D6, review #2), Boot 4 prop
 - `examples/run.sh` (Hurl): **7 files, 170 requests** green; `examples/spring-boot-4.hurl` fails on the 2.7 image, as
   it should.
 
-## After merge (D12 (4), still open)
+## After merge (D12 (4)): done, tick ~171
 
-1. Once the deploy job is green, `curl $TEAM_URL/actuator/info` shows `springBoot` 4.1.2, `springFramework` 7.0.10,
-   `java` 25.x, and `examples/run.sh $TEAM_URL` passes.
-2. The harness feedback for the base features (speakers, talks, ratings) and co-speakers stays green for the next
-   ticks; any FAULTY check gets checked in the logs (`.github/fagdag/logs.sh`).
+Squash-merged as `244682a` (#3); deploy run 42231778690: `tests` and `deploy` both green.
+
+| Check on TEAM_URL | Result |
+|---|---|
+| `/health` | `{"status":"ok","version":"244682a5971f6f783f40f686d1a3fbf962a2242e"}` |
+| `/actuator/info` | `{"versions":{"java":"25.0.5","springBoot":"4.1.2","springFramework":"7.0.10"}}` |
+| `examples/run.sh` | 7 files, 170 requests, all green |
+| Logs since the deploy (14:15Z) | 0 responses with a 5xx status |
+| Harness at tick 171 | speakers, talks, co-speakers, acceptance all OK (workshop-registration check-2 FAULTY since tick 162, before this deploy: not caused by the upgrade) |
+| Black-box suite against TEAM_URL | 108/110: the two failures are 30 s timeouts on `GET /talks` (25 s) and `/admin/stats` (35 s) with ~6,500 talks in production: N+1 queries that predate the upgrade; fixed separately on `fix/talk-list-performance` |
 
 ## The script
 

@@ -1,0 +1,12 @@
+---
+description: Team process rules in .claude/rules
+alwaysApply: true
+---
+
+# Team rules
+
+Before feature work, an API change, or a review, read and follow the rule that applies. The files in `.claude/rules/` are the source of truth.
+
+- `.claude/rules/feature-workflow.md` — a new harness drip feature or change request. Use `/feature <slug>`. Do not start one ad hoc.
+- `.claude/rules/black-box-api.md` — any change to the HTTP surface. Review and update `black-box-tests/`.
+- `.claude/rules/review-log.md` — after a deploy, a workflow change, a review of agent output, a claim, a FAULTY harness check, or something reusable. Update `REVIEW.md` in the same commit as the work.

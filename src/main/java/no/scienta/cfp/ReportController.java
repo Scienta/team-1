@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Exports for the programme committee's spreadsheet. Not part of the public API.
@@ -28,16 +30,19 @@ public class ReportController {
     @GetMapping("/admin/talks.csv")
     public ResponseEntity<String> talksCsv() {
         List<TalkDto> talks = service.listTalks(null, null);
+        Map<Long, String> speakers = service.speakerNames();
         StringBuilder sb = new StringBuilder();
         sb.append("id;title;format;minutes;level;speaker;status;submitted;rating;ratings\n");
         for (TalkDto t : talks) {
-            Map<String, Object> speaker = service.getSpeaker(t.speakerId);
+            if (!speakers.containsKey(t.speakerId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found"); // as getSpeaker did
+            }
             sb.append(t.id).append(';')
                     .append(Utils.csv(t.title)).append(';')
                     .append(Utils.capitalize(t.format.replace("_", " "))).append(';')
                     .append(t.durationMinutes).append(';')
                     .append(Utils.capitalize(t.level)).append(';')
-                    .append(Utils.csv((String) speaker.get("name"))).append(';')
+                    .append(Utils.csv(speakers.get(t.speakerId))).append(';')
                     .append(t.status).append(';')
                     .append(Utils.norwegianDate(t.submittedAt)).append(';')
                     .append(t.averageRating == null ? "" : String.valueOf(t.averageRating).replace('.', ',')).append(';')

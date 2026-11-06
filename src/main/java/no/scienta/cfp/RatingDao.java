@@ -1,5 +1,7 @@
 package no.scienta.cfp;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,6 +30,25 @@ public class RatingDao {
      */
     public Map<String, Object> stats(long talkId) {
         return jdbc.queryForMap("SELECT COUNT(*) AS cnt, COALESCE(SUM(score), 0) AS total FROM rating WHERE talk_id = ?", talkId);
+    }
+
+    /**
+     * Returns {cnt, total} by talk id for the given talks, in one query. Talks without ratings aren't in the map.
+     */
+    public Map<Long, Map<String, Object>> statsByTalk(Collection<Long> talkIds) {
+        Map<Long, Map<String, Object>> stats = new HashMap<>();
+        if (talkIds.isEmpty()) {
+            return stats;
+        }
+        jdbc.query("SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating WHERE talk_id = ANY(?) GROUP BY talk_id",
+                ps -> ps.setArray(1, ps.getConnection().createArrayOf("bigint", talkIds.toArray())),
+                rs -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("cnt", rs.getLong("cnt"));
+                    row.put("total", rs.getLong("total"));
+                    stats.put(rs.getLong("talk_id"), row);
+                });
+        return stats;
     }
 
     // public double average(long talkId) {

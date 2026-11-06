@@ -69,8 +69,13 @@ into the PR for a person to decide.
 3. If `gh auth status` succeeds: `gh pr create --base main --head feat/<slug> --title "feat(<slug>): ..." --body-file specs/<slug>/pr.md`.
    Otherwise give the human the compare URL `https://github.com/Scienta/team-1/compare/main...feat/<slug>`
    and the body file to paste.
-4. Tell the human: what's ready, the open questions, the rejected review findings, and the next steps
-   (below). Don't say the feature is done or claimable: that comes after the merge and the checks.
+4. A PR is ready only when both checks on its head commit are green:
+   - `tests` (`.github/workflows/tests.yml`): `./mvnw -B package`, the Java build and tests.
+   - `black-box` (`.github/workflows/black-box.yml`): the Vitest suite.
+   Check with `gh pr checks`. Pending or failing means the PR is not ready.
+5. Tell the human: what's ready, the open questions, the rejected review findings, and the next steps
+   (below). Don't say the PR is ready until both checks above are green. Don't say the feature is
+   done or claimable: that comes after the merge and the checks.
 
 ## 8. After a person merges (deploys)
 

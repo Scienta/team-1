@@ -20,7 +20,7 @@ person is needed.
 | 4. Implement | `implementer` agent | failing tests first, each citing a rule id; code; `examples/<slug>.hurl`; green `./mvnw package` |
 | 5. Review | `reviewer` agent, fresh context, read-only | findings with severity, rule id, `file:line`, failing scenario |
 | 6. Triage | the same `implementer` | agree and fix (with a test), or reject with a reason: `specs/<slug>/review.md` |
-| 7. PR | main session | PR from `workflow/templates/pr.md`; the person is told what's ready |
+| 7. PR | main session | PR from `workflow/templates/pr.md`. Ready only when `tests` and `black-box` are both green on the head commit |
 | 8. Merge | **person** | merge to `main` deploys; the deploy waits for the tests to pass |
 | 9. Verify | main session | `/health` SHA, Hurl green on TEAM_URL, no 5xx in logs, all claimed checks OK |
 | 10. Claim | **person** | claims on the harness; claim-log row in `REVIEW.md` |

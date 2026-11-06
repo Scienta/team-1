@@ -4,6 +4,7 @@ import {
   createSpeaker,
   getSpeaker,
   postSpeakerRaw,
+  putSpeakerRaw,
 } from "../helpers/factories.js";
 import { get, waitForHealth } from "../helpers/http.js";
 import { uniqueEmail, uniqueName } from "../helpers/ids.js";
@@ -90,6 +91,25 @@ describe("speakers", () => {
       expect([201, 409]).toContain(res.status);
     }
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+  });
+
+  it("survives concurrent updates of different speakers to one email with a single winner", async () => {
+    const email = uniqueEmail("move");
+    const speakers = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => createSpeaker({ name: `Mover ${i}` })),
+    );
+    const results = await Promise.all(
+      speakers.map((s, i) =>
+        putSpeakerRaw(s.id, {
+          name: s.name,
+          email: i % 2 === 0 ? email : email.toUpperCase(),
+        }),
+      ),
+    );
+    for (const res of results) {
+      expect([200, 409]).toContain(res.status);
+    }
+    expect(results.filter((r) => r.status === 200)).toHaveLength(1);
   });
 
   it("can read the shared baseline speaker (read-only seed)", async () => {

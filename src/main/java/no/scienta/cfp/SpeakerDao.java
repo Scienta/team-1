@@ -1,5 +1,6 @@
 package no.scienta.cfp;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,17 @@ public class SpeakerDao {
             return null;
         }
         return rows.get(0);
+    }
+
+    /**
+     * Every speaker's name by id, in one query (a name may be null).
+     */
+    public Map<Long, String> namesById() {
+        Map<Long, String> names = new HashMap<>();
+        jdbc.query("SELECT id, name FROM speaker", rs -> {
+            names.put(rs.getLong("id"), rs.getString("name"));
+        });
+        return names;
     }
 
     public boolean exists(long id) {

@@ -25,11 +25,14 @@ From harness request to claim we follow `workflow/spec-to-claim.md`:
 
 Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.claude/rules/` (including black-box API coverage).
 
+A pull request is ready only when both PR checks are green: `tests` (`.github/workflows/tests.yml`, `./mvnw -B package`) and `black-box` (`.github/workflows/black-box.yml`). The feature skill says the same (`.claude/skills/feature/SKILL.md`).
+
 ## 2. How we reviewed agent output
 
 - Humans run `workflow/review-checklist.md` against the harness request plus our decisions file
 - Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL,
-  Vitest black-box on PRs (`.github/workflows/black-box.yml`), harness `/feedback` and timeline for FAULTY checks
+  on PRs both `tests` (`.github/workflows/tests.yml`, Java build and tests) and `black-box`
+  (`.github/workflows/black-box.yml`) must be green before the PR is ready, harness `/feedback` and timeline for FAULTY checks
 - Deploy workflow must stay green (`/health` with new `GIT_SHA`)
 - Test review against the base specs, rule by rule, while all harness checks were green: ratings had
   no tests at all (`RatingsTest` is new), and `SpeakersTest`/`TalksTest` now cover their specs; a
@@ -58,6 +61,15 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
   An independent review agent then found that a tab or line break around an email slipped past the
   duplicate check (Postgres `trim()` strips only spaces), against D9's "surrounding whitespace ignored".
   We fixed it with a test that failed first; triage of all three findings is in `specs/workshop-registration/review.md`.
+- Concurrency review of `src/main` (agent, read against the code and the schema's unique indexes): parallel
+  `PUT /speakers/{id}` requests moving different speakers to one email got 500, not 409. The check-then-update
+  in `ConferenceService.updateSpeaker` raced, and `ux_speaker_email`'s `DuplicateKeyException` went uncaught.
+  Reproduced locally (6 parallel PUTs ×5 runs: 1–3 × 500 per run). Fixed by mapping it to 409. The new
+  `SpeakersTest.concurrentUpdatesToOneEmailHaveOneWinnerAndNoServerError` failed with the fix removed and passes
+  with it. All Java tests and the Vitest suite (111 tests, new parallel-update test included) pass against a JDK 25
+  jar on the Compose database. Not yet checked against the deployed service. The same review flagged, without
+  reproducing it, that `/health` borrows from the 5-connection pool with no bound on connection wait, so it
+  can return 503 under pool contention; left open.
 - programme-export (`feat/programme-export`): every rule and decision row in `specs/programme-export/spec.md`
   has a named test in `ProgrammeExportTest` (23 tests, written first and seen failing with 404, incl.
   exports racing parallel scheduling PUT/DELETE). Also `examples/programme-export.hurl` (18 requests) and
@@ -117,7 +129,7 @@ found", decision D2); the harness wants something else. Now 409, the other optio
 product owner ("this talk doesn't take registrations"), deployed as `500faa6`. The check then got one
 request further and failed at tick 174 on the next one: listing that presentation's registrations,
 where we still answered 404. Now 200 with an empty list for any existing talk; only an unknown talk
-is 404.
+is 404 (`a2d0e47`). check-2 OK from tick 181 (FAULTY ticks 162–180).
 
 Why our review missed it: the same pattern as acceptance. D2 was a PO-confirmed answer, so the spec,
 `WorkshopRegistrationTest`, the Hurl example and the Vitest suite all pinned 404, and the reviewer
@@ -137,6 +149,7 @@ together with D7.
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage
 - `black-box-tests/` — Vitest HTTP suite + `decisions.md` + PR workflow `black-box.yml`
+- `.github/workflows/tests.yml` — PR-only Java build and tests (`./mvnw -B package`). With `black-box.yml`, both checks must be green before a PR is ready
 - `workflow/spec-to-claim.md` — end-to-end process
 - `workflow/review-checklist.md` — review rubric
 - `workflow/templates/decisions.md` — turn a feature request into a real spec
