@@ -1,6 +1,20 @@
 # Black-box tests
 
-TypeScript + Vitest HTTP suite against a running CFP API. Plan: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
+TypeScript + Vitest HTTP suite against a running CFP API. Complements `./mvnw` Testcontainers tests
+and `examples/*.hurl` (happy-path smoke). Plan history: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
+Agent rule when the API changes: [`.claude/rules/black-box-api.md`](../.claude/rules/black-box-api.md).
+
+## What it covers
+
+| Suite | Focus |
+|-------|--------|
+| `health` | Deploy `/health` 200 + version |
+| `speakers` | Register/read, bio, email uniqueness, trailing slash, concurrency |
+| `talks` | Formats/durations/levels, timestamps, max 3 talks, listing, concurrency |
+| `ratings` | Scores, replace, rounding, `sort=rating` ties, unrated, concurrency |
+| `co-speakers` | Order, idempotent add, max 2, main-as-co 400, remove-missing 404, quota |
+
+Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 
 ## Prerequisites (local)
 
@@ -21,23 +35,25 @@ npm ci
 # Starts jar (builds if needed), waits for /health, runs Vitest, stops the jar it started
 npm run test:local
 
-# App already on CFP_BASE_URL (default http://localhost:8080)
+# App already up (default http://localhost:8080)
 npm test
 
-# CI entrypoint (workflow owns Postgres + jar + CFP_BASE_URL)
+# CI entrypoint (workflow owns Postgres + jar)
 npm run test:ci
 ```
 
-Use `CFP_BASE_URL` (not bare `BASE_URL`) — some environments set `BASE_URL=/`.
+Point at another origin with **`CFP_BASE_URL`** (not bare `BASE_URL` — some tools set `BASE_URL=/`).
 
 From repo root: `npm --prefix black-box-tests run test:local`.
 
 ## CI
 
-Workflow: `.github/workflows/black-box.yml` (pull_request + workflow_dispatch).  
-Mark that check **required** in branch protection; it is not wired into `deploy.yml`.
+Workflow: [`.github/workflows/black-box.yml`](../.github/workflows/black-box.yml) on `pull_request` and
+`workflow_dispatch`. Job-local Postgres + jar; not wired into `deploy.yml`. Mark the **black-box**
+check required in branch protection if it should gate merges.
 
-## Notes
+## Design notes
 
 - Re-runnable via unique emails/ids (no DB truncate). Local Compose DB will grow.
-- Deep coverage of base specs; `examples/*.hurl` remains the light smoke path.
+- Factories + optional `seedBaseline()` for read-only cases; prefer helpers over duplicated fetch/assert.
+- On API change: add or adjust suites here and update `decisions.md` when needed.
