@@ -1,9 +1,10 @@
 # Programme export: our spec
 
 Feature request: `specs/programme-export/request.md` (harness slug `programme-export`, V 1, released at tick 133).
-Status: draft
+Status: ready to implement (questions answered from evidence, not by the PO; see the end)
 
-Depends on: **scheduling** (`origin/feat/scheduling`, not on `main` yet). Rows come from its `programme`
+Depends on: **scheduling** (`origin/feat/scheduling`, not on `main` yet; merged into this branch, so this
+PR carries scheduling's commits until scheduling is merged). Rows come from its `programme`
 table (`room`, `slot`, `talk_id`; PK `(room, slot)`, `UNIQUE (talk_id)`) and times from `Venue.Slot`.
 Co-speaker order comes from `co_speaker.id` (already on `main`).
 
@@ -92,7 +93,10 @@ New or changed fields in existing responses: none. Scheduling's `/programme/{roo
 
 ## Concurrency
 
-Read-only; no locks. Each request reads the programme, talks, speakers and co-speakers in one
+Read-only; no locks. Default isolation (`READ COMMITTED`): **never** `REPEATABLE_READ` or
+`SERIALIZABLE` (team 3 put `@Transactional(isolation = REPEATABLE_READ)` on its export and broke
+workshop-registration's 20-seat check and ratings with `could not serialize access` 500s; their
+`REVIEW.md`, 14:07 incident). Each request reads the programme, talks, speakers and co-speakers in one
 read-only transaction (or one joined SQL query) so a row is never half from before and half from after a
 concurrent change. Keep it to one connection per request (pool is 5): at most 15 rows, so a single
 join or a few batched queries, not an extra connection per row. Don't use `FOR UPDATE`: exports must not
@@ -124,10 +128,14 @@ block or be blocked by scheduling `PUT`/`DELETE` beyond normal MVCC.
 
 ## Open questions for the product owner
 
-Ranked by how likely a wrong guess fails a harness check. Answers go here, with who asked and when.
+Not put to the PO. Answered on 2026-11-06 from the feature requests and from team 5's public repo
+(`Scienta/team-5`): team 5 claimed programme-export at tick 152 with the same three choices, and its
+`REVIEW.md` reports all 3 harness checks OK from the first tick. That shows the checks accept these
+answers, not that they test each case.
 
-1. A talk is withdrawn (or rejected) after it was put on the programme: should it still appear in the
-   export (we say yes, as scheduling keeps it on the programme), or be left out?
-2. Is `text/csv; charset=UTF-8` fine, or must the `Content-Type` be exactly `text/csv` with no parameter?
-3. Should the export ever answer `406` for an `Accept` it can't satisfy on `/programme` (we always answer
-   JSON there), or is always-200 fine?
+1. Withdrawn or rejected after it was scheduled: **still in the export (D2).** Scheduling's request:
+   "If a talk changes afterwards, the programme stays as it is"; this request: "everything on the
+   programme". Team 5: same (their E1).
+2. `Content-Type`: **`text/csv; charset=UTF-8` (D10).** Team 5 answers `text/csv;charset=UTF-8` under any
+   `Accept` (their E8).
+3. `406` on `/programme`: **never; always 200 JSON (D12).** Team 5 has no `produces` on `/programme`.
