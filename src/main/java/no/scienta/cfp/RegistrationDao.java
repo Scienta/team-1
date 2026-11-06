@@ -9,11 +9,19 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
- * Workshop registrations (specs/workshop-registration/spec.md). Emails are stored as typed and compared as
- * {@code lower(trim(email))}, in SQL on both sides so the check and the unique index agree.
+ * Workshop registrations (specs/workshop-registration/spec.md). Emails are stored as typed and compared lowercased
+ * with surrounding whitespace removed (D9, D12), in SQL on both sides so the check and the unique index agree.
  */
 @Repository
 public class RegistrationDao {
+
+    /**
+     * What D12 calls {@code trim}: Postgres's plain {@code trim()} strips only spaces, so this strips space, tab, LF,
+     * CR, FF and VT as well. Must stay identical to the expression in {@code ux_workshop_registration_email_ws}.
+     */
+    static String normalised(String column) {
+        return "lower(btrim(" + column + ", E' \\t\\n\\r\\f\\013'))";
+    }
 
     private final JdbcTemplate jdbc;
 
@@ -46,7 +54,7 @@ public class RegistrationDao {
 
     public boolean emailTaken(long talkId, String email) {
         Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM workshop_registration "
-                + "WHERE talk_id = ? AND lower(trim(email)) = lower(trim(?))", Integer.class, talkId, email);
+                + "WHERE talk_id = ? AND " + normalised("email") + " = " + normalised("?"), Integer.class, talkId, email);
         return n != null && n > 0;
     }
 

@@ -35,7 +35,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Workshops: non-integer id | `400` |
 | Workshops: body missing, not JSON or not an object; `name`/`email` missing, null, blank or not a string; invalid email | `400` |
 | Workshops: registering for a workshop that isn't `ACCEPTED` (submitted, waitlisted, rejected, withdrawn) | `409` (PO confirmed) |
-| Workshops: same email again for the same workshop (case-insensitive, surrounding spaces ignored) | `409` (PO confirmed) |
+| Workshops: same email again for the same workshop (case-insensitive, surrounding whitespace incl. tabs/line breaks ignored) | `409` (PO confirmed) |
 | Workshops: 21st registration, also in a parallel rush | `409`; exactly 20 stored |
 | Workshops: listing a workshop in any status (withdrawn keeps its list) | `200` (PO confirmed) |
 | Workshops: order of checks | `404` talk/not a workshop, then `400` body, then `409` |

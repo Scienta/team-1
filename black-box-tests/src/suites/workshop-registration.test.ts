@@ -104,12 +104,12 @@ describe("workshop-registration", () => {
     expect(ids).toEqual([...ids].sort((a, b) => a - b));
   });
 
-  it("R6, D9, D12: the same email in any case or with surrounding spaces is 409; the first keeps its place", async () => {
+  it("R6, D9, D12: the same email in any case or with surrounding whitespace is 409; the first keeps its place", async () => {
     const w = await createAcceptedWorkshop();
     const email = uniqueEmail("ada");
     const first = await register(w.id, "Ada", email);
     await register(w.id, "Grace", uniqueEmail("grace"));
-    for (const again of [email, email.toUpperCase(), `  ${email}  `]) {
+    for (const again of [email, email.toUpperCase(), `  ${email}  `, `\t${email}\n`]) {
       await expectRefused(await registerRaw(w.id, { name: "Ada Again", email: again }), 409, w.id, 2);
     }
     expect((await listRegistrations(w.id))[0]).toEqual(first);

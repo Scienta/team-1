@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS workshop_registration (
     id      SERIAL PRIMARY KEY,
     talk_id INTEGER NOT NULL,
     name    TEXT NOT NULL,
-    email   TEXT NOT NULL                           -- as typed; compared as lower(trim(email))
+    email   TEXT NOT NULL                           -- as typed; compared lowercased, surrounding whitespace removed
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email ON workshop_registration (talk_id, lower(trim(email)));
+-- Same expression as RegistrationDao.normalised: trim() alone strips only spaces, this also tab, LF, CR, FF, VT.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_workshop_registration_email_ws
+    ON workshop_registration (talk_id, lower(btrim(email, E' \t\n\r\f\013')));

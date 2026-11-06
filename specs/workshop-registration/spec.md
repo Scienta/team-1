@@ -1,10 +1,10 @@
 # Workshop registration with capacity: our spec
 
 Feature request: `specs/workshop-registration/request.md` (harness slug `workshop-registration`, V 2, released at tick 67).
-Status: PO confirmed (questions 1–4), ready to implement once acceptance is on main
+Status: PO confirmed (questions 1–4); implemented on `feat/workshop-registration`
 
-Depends on the acceptance state machine (`specs/acceptance/spec.md` on `origin/feat/acceptance`, not on `main`
-yet). Status values used here are theirs: `SUBMITTED`, `ACCEPTED`, `REJECTED`, `WAITLISTED`, `WITHDRAWN`. A talk
+Depends on the acceptance state machine (`specs/acceptance/spec.md`, on `main` since `fb2e37f`; this branch
+includes it via `dccb8d2`). Status values used here are theirs: `SUBMITTED`, `ACCEPTED`, `REJECTED`, `WAITLISTED`, `WITHDRAWN`. A talk
 only becomes `ACCEPTED` through `PUT /talks/{id}/status` after two distinct reviewers have rated it.
 
 ## Rules (from the feature request)

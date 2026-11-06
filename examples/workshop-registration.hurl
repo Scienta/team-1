@@ -80,12 +80,15 @@ HTTP 201
 [Captures]
 ada_id: jsonpath "$.id"
 ada_email: jsonpath "$.email"
+ada_other_case: jsonpath "$.email" replace "ADA-" "ada-" replace "@Example.com" "@EXAMPLE.COM"
 [Asserts]
 jsonpath "$.id" isInteger
 jsonpath "$.workshopId" == {{ws_id}}
 jsonpath "$.name" == "Ada Lovelace"
 jsonpath "$.email" startsWith "ADA-"
 jsonpath "$.email" endsWith "@Example.com"
+jsonpath "$.email" replace "ADA-" "ada-" replace "@Example.com" "@EXAMPLE.COM" startsWith "ada-"
+jsonpath "$.email" replace "ADA-" "ada-" replace "@Example.com" "@EXAMPLE.COM" endsWith "@EXAMPLE.COM"
 
 # D1: unknown talk
 POST {{base_url}}/workshops/999999999/registrations
@@ -192,13 +195,21 @@ POST {{base_url}}/workshops/{{pres_id}}/registrations
 {}
 HTTP 404
 
-# R6, D9, D12: the same email in another case, or with spaces around it, is 409
+# R6, D9, D12: the same email again, in another case, or with whitespace around it, is 409
 POST {{base_url}}/workshops/{{ws_id}}/registrations
 { "name": "Ada Again", "email": "{{ada_email}}" }
 HTTP 409
 
 POST {{base_url}}/workshops/{{ws_id}}/registrations
+{ "name": "Ada Again", "email": "{{ada_other_case}}" }
+HTTP 409
+
+POST {{base_url}}/workshops/{{ws_id}}/registrations
 { "name": "Ada Again", "email": "  {{ada_email}}  " }
+HTTP 409
+
+POST {{base_url}}/workshops/{{ws_id}}/registrations
+{ "name": "Ada Again", "email": "\t{{ada_email}}\n" }
 HTTP 409
 
 # D14: unknown fields are ignored. D17: the workshop's own speaker may register.

@@ -1,6 +1,7 @@
 package no.scienta.cfp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
@@ -12,8 +13,11 @@ import java.util.concurrent.CompletableFuture;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -32,6 +36,9 @@ class WorkshopRegistrationTest {
 
     @Value("${local.server.port}")
     int port;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private Api api;
 
@@ -273,6 +280,33 @@ class WorkshopRegistrationTest {
         JsonNode list = list(w);
         assertEquals(first, list.get(0));
         assertEquals("Ada", list.get(0).get("name").asText());
+    }
+
+    // D9 "surrounding whitespace ignored": tabs and line breaks too, not only spaces (review finding 1)
+    @Test
+    void d9d12_whitespaceOtherThanSpacesAroundTheEmailIsTheSamePerson() {
+        long w = workshop();
+        registered(w, "Ada", "ada@example.com");
+        for (String padded : new String[] {"\\tada@example.com", "ada@example.com\\n", "\\r\\n ADA@example.com\\t "}) {
+            refused(409, register(w, body("Ada Again", padded)), w, 1);
+        }
+
+        long v = workshop();
+        registered(v, "Ada", "\\tada@example.com");
+        refused(409, register(v, body("Ada Again", "ada@example.com")), v, 1);
+    }
+
+    // Concurrency backstop: the unique index compares emails the same way as the check (review finding 1)
+    @Test
+    void d12_theUniqueIndexAlsoIgnoresCaseAndSurroundingWhitespace() {
+        long w = workshop();
+        jdbc.update("INSERT INTO workshop_registration (talk_id, name, email) VALUES (?, 'Ada', ?)", w, "ada@example.com");
+        for (String same : new String[] {"ADA@example.com", " ada@example.com", "\tada@example.com\n", "\r\nAda@Example.com"}) {
+            assertThrows(DuplicateKeyException.class, () -> jdbc.update(
+                    "INSERT INTO workshop_registration (talk_id, name, email) VALUES (?, 'Ada', ?)", w, same), same);
+        }
+        jdbc.update("INSERT INTO workshop_registration (talk_id, name, email) VALUES (?, 'Ada', ?)", w, "ada2@example.com");
+        assertEquals(2, list(w).size());
     }
 
     @Test
