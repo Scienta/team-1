@@ -104,6 +104,19 @@ reviewer judged against the spec. The feature request's own words said "final". 
 answer loosens a rule the request states, keep the request's wording, or flag it as the riskiest
 decision before the claim.
 
+**workshop-registration, tick 162: a talk that isn't a workshop.** Claimed at tick 161; checks 1, 3 and
+4 OK on the first run, check-2 FAULTY on `POST /workshops/{id}/registrations`. It rejected a workshop
+(our 409, fine), then accepted a *presentation* and registered for it. We answered 404 ("workshop not
+found", decision D2); the harness wants something else. Now 409, the other option we had put to the
+product owner ("this talk doesn't take registrations"); listing a non-workshop stays 404.
+
+Why our review missed it: the same pattern as acceptance. D2 was a PO-confirmed answer, so the spec,
+`WorkshopRegistrationTest`, the Hurl example and the Vitest suite all pinned 404, and the reviewer
+judged against the spec. The status code was a coin toss between two readings, and the PO picked the
+one the harness doesn't use. Seen before the claim: the harness's own traffic in our logs showed it
+registering for talks before the claim, but only on the old version (404 from a missing route), so
+nothing told us which code it wanted.
+
 ## 5. Reusable artifacts
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage

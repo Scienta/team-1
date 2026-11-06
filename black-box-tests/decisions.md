@@ -39,7 +39,8 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Workshops: same email again for the same workshop (case-insensitive, surrounding whitespace incl. tabs/line breaks ignored) | `409` (PO confirmed) |
 | Workshops: 21st registration, also in a parallel rush | `409`; exactly 20 stored |
 | Workshops: listing a workshop in any status (withdrawn keeps its list) | `200` (PO confirmed) |
-| Workshops: order of checks | `404` talk/not a workshop, then `400` body, then `409` |
+| Workshops: registering for a talk that isn't a `WORKSHOP` | `409` (not 404 — harness check-2, tick 162); listing it stays `404` |
+| Workshops: order of checks | `404` unknown talk, then `400` body, then `409` (not a workshop, not accepted, duplicate, full) |
 | Workshops: `DELETE /workshops/{id}/registrations` | `405` |
 
 Trailing slash: `POST /speakers/` and `GET /speakers/{id}/` work like the slash-free forms.

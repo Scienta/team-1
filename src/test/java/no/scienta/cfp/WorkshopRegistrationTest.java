@@ -126,14 +126,17 @@ class WorkshopRegistrationTest {
 
     // ------------------------------------------------------------ R2, D2: only workshops
 
+    // Registering is 409 (the harness's check-2 failed on 404 for an accepted presentation, tick 162); listing a
+    // talk that isn't a workshop stays 404.
     @Test
-    void r2d2_aTalkThatIsNotAWorkshopIs404() {
+    void r2d2_registeringForATalkThatIsNotAWorkshopIs409AndListingIt404() {
         long speaker = api.newSpeaker();
         long presentation = accepted(speaker, "PRESENTATION");
         long lightning = accepted(speaker, "LIGHTNING_10");
         long lightning20 = talk(speaker, "LIGHTNING_20");
         for (long t : new long[] {presentation, lightning, lightning20}) {
-            assertEquals(404, register(t, body("Ada", uniqueEmail())).statusCode());
+            HttpResponse<String> res = register(t, body("Ada", uniqueEmail()));
+            assertEquals(409, res.statusCode(), res.body());
             assertEquals(404, api.get("/workshops/" + t + "/registrations").statusCode());
         }
     }
@@ -508,8 +511,9 @@ class WorkshopRegistrationTest {
 
         assertEquals(404, register(999999, "not json").statusCode());
         assertEquals(404, register(999999, "{}").statusCode());
-        assertEquals(404, register(presentation, "not json").statusCode());
-        assertEquals(404, register(presentation, null).statusCode());
+        assertEquals(400, register(presentation, "not json").statusCode());
+        assertEquals(400, register(presentation, null).statusCode());
+        assertEquals(409, register(presentation, body("Ada", uniqueEmail())).statusCode());
         refused(400, register(submitted, "{\"name\":\"Ada\"}"), submitted, 0);
         refused(400, register(full, "{\"name\":\"Ada\",\"email\":\"nope\"}"), full, 20);
     }

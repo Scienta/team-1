@@ -27,19 +27,27 @@ public class WorkshopService {
     }
 
     /**
-     * Order of checks (D18): 404 talk or not a workshop, 400 body, 409 not accepted, 409 duplicate, 409 full. The talk
-     * row is locked first, so parallel registrations (and a concurrent withdrawal) for one workshop run one after the
-     * other and each sees the rows of the ones before (R5, R6).
+     * Order of checks (D18): 404 unknown talk, 400 body, 409 not a workshop, 409 not accepted, 409 duplicate, 409 full.
+     * The talk row is locked first, so parallel registrations (and a concurrent withdrawal) for one workshop run one
+     * after the other and each sees the rows of the ones before (R5, R6).
      */
     @Transactional
     public Map<String, Object> register(long talkId, String body) {
         talkDao.lockForUpdate(talkId);
-        TalkDto talk = workshop(talkId);
+        TalkDto talk = talkDao.findById(talkId);
+        if (talk == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found"); // D1
+        }
         JsonNode json = ConferenceService.readObject(body);
         String name = requiredText(json, "name"); // D5
         String email = requiredText(json, "email"); // D6
         if (!Utils.isValidEmail(email)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email"); // D7
+        }
+        if (!"WORKSHOP".equals(talk.format)) {
+            // 409, not 404: workshop-registration/check-2 failed on 404 for an accepted presentation (tick 162).
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "only workshops take registrations; this talk is a " + talk.format); // R2, D2
         }
         if (!"ACCEPTED".equals(talk.status)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -69,7 +77,7 @@ public class WorkshopService {
         return registrationDao.findByWorkshop(talkId);
     }
 
-    /** The talk, if it is a workshop; else 404 (D1, D2). */
+    /** The talk, if it is a workshop; else 404 (D1, D2: listing a talk that isn't a workshop stays 404). */
     private TalkDto workshop(long talkId) {
         TalkDto talk = talkDao.findById(talkId);
         if (talk == null || !"WORKSHOP".equals(talk.format)) {

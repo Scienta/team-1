@@ -395,9 +395,9 @@ paths:
         '400':
           description: Id not an integer, body missing or not a JSON object, name or email missing or blank, or email not an email
         '404':
-          description: No such talk, or the talk isn't a workshop
+          description: No such talk
         '409':
-          description: The workshop isn't ACCEPTED, the email is already registered for it, or it has 20 registrations
+          description: The talk isn't a workshop, the workshop isn't ACCEPTED, the email is already registered for it, or it has 20 registrations
     get:
       tags: [workshops]
       summary: A workshop's registrations, first registered first
