@@ -29,6 +29,9 @@ permissions:
 
 jobs:
   deploy:
+    # Team gate (workflow/feature-process.md): never deploy a commit whose tests fail. A failed test
+    # run leaves the previous version serving.
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -72,13 +75,10 @@ jobs:
           echo "error_message: $(scw container container get "$SCW_CONTAINER_ID" -o json | jq -r '.error_message // "(none)"')" || true
           .github/fagdag/logs.sh --tail 200 --since "$ROLLOUT_STARTED_AT"
 
-  # The unit tests run after the deploy and are NOT a gate: the suite is thin and partly wrong.
-  # To make them one, move this job before deploy and add `needs: tests` to the deploy job.
+  # The tests are a gate: the deploy job `needs` this one (the organisers shipped it as a non-gating
+  # job after the deploy; the team's rule-by-rule suite replaced the thin one).
   tests:
-    needs: deploy
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
