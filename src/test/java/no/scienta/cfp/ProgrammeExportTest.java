@@ -422,7 +422,7 @@ class ProgrammeExportTest {
         }
         for (CompletableFuture<HttpResponse<String>> f : edits) {
             int status = f.join().statusCode();
-            assertTrue(status == 200 || status == 404 || status == 409, "edit gave " + status);
+            assertTrue(status == 200 || status == 204 || status == 404 || status == 409, "edit gave " + status); // DELETE is 204 since #12
         }
         for (CompletableFuture<HttpResponse<String>> f : exports) {
             HttpResponse<String> res = f.join();
