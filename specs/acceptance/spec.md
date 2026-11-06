@@ -1,7 +1,7 @@
 # Acceptance state machine: our spec
 
 Feature request: `specs/acceptance/request.md` (harness slug `acceptance`, V 2, released at tick 20).
-Status: PO questions asked (1 of 4 answered)
+Status: PO questions asked (2 of 4 answered)
 
 ## Rules (from the feature request)
 
@@ -57,7 +57,7 @@ both green on the harness).
 | D6 | `WAITLISTED` on a talk that is already `WAITLISTED` | 200, unchanged (idempotent) | **PO confirmed** (question 2) |
 | D7 | the same final decision again (`ACCEPTED` → `ACCEPTED`) | 409 | "the decision is final"; any decision on a final talk is refused |
 | D8 | withdraw: `speakerId` missing, null or not an integer | 400 | invalid request |
-| D9 | withdraw: `speakerId` is a registered speaker who isn't the talk's main speaker (including a co-speaker) | 403 | "nobody else can withdraw it": who asks, not the talk's state; **PO question 1** |
+| D9 | withdraw: `speakerId` is a registered speaker who isn't the talk's main speaker (including a co-speaker) | 403 | "nobody else can withdraw it": who asks, not the talk's state. A co-speaker is "somebody else": **PO question 1, answered** |
 | D10 | withdraw: `speakerId` isn't a registered speaker | 403 | also "somebody else"; we don't reveal which ids exist |
 | D11 | withdraw from `REJECTED` or `WITHDRAWN` | 409 | the state refuses it (D4); checked after D8–D10, so a stranger gets 403 whatever the state |
 | D12 | order of checks | 404 talk → 400 body → 403 who (withdraw) → 409 state/ratings | path first, then input, then permission, then rules |
@@ -93,7 +93,11 @@ make an accept invalid.
 
 Ranked by how likely a wrong guess fails a harness check. Answers go here, with who asked and when.
 
-1. Can a co-speaker withdraw the talk, or only the main speaker? (We say only the main speaker; others get 403.)
+1. Can a co-speaker withdraw the talk, or only the main speaker?
+   **Answered (PO, relayed by a team member, 2026-11-06): "it's in the requirements".** Our reading: only the
+   main speaker. The request says a speaker withdraws "their own talk" and "nobody else can", and elsewhere a
+   speaker's own talks are the ones where they're the main speaker (co-speakers: "a speaker's own talk list
+   still shows only the talks where they are the main speaker"). So a co-speaker gets 403 (D9).
 2. Is waitlisting an already waitlisted talk allowed (no change) or refused?
    **Answered (PO, relayed by a team member, 2026-11-06): it's idempotent: 200, no change.** D6.
 3. Does a withdrawn or rejected talk still count towards the speaker's limit of 3 talks? (We say yes.)
