@@ -1,5 +1,7 @@
 # Programme export (specs/programme-export/spec.md). Drip feature: our own light smoke; Vitest is the deep suite.
-# Safe on a shared database: it frees R3/S5, places its own talk there, checks its row, and frees the cell again.
+# NOT safe on a database whose programme matters (e.g. TEAM_URL while the harness runs): it DELETEs whatever is in
+# R3/S5, places its own talk there, and leaves the cell empty at the end. Hurl can't capture a talkId from a cell
+# that may be empty, so it can't put a previous occupant back. Run it locally or against a scratch database.
 # Run: hurl --test --variable base_url=http://localhost:8080 programme-export.hurl
 
 POST {{base_url}}/speakers
@@ -91,6 +93,13 @@ HTTP 200
 [Asserts]
 header "Content-Type" startsWith "text/csv"
 body startsWith "slot,start,end,room,talkId,title,format,speakers\n"
+
+# D17: HEAD is the GET's headers without a body
+HEAD {{base_url}}/programme.csv
+HTTP 200
+[Asserts]
+header "Content-Type" startsWith "text/csv"
+bytes count == 0
 
 # D16: read-only
 POST {{base_url}}/programme

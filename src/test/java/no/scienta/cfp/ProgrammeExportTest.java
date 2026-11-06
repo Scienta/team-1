@@ -430,7 +430,7 @@ class ProgrammeExportTest {
             if (res.uri().getPath().endsWith(".csv")) {
                 assertTrue(res.body().startsWith(HEADER));
                 assertTrue(res.body().endsWith("\n"));
-                assertFalse(res.body().endsWith("\n\n") && !res.body().equals(HEADER));
+                assertFalse(res.body().endsWith("\n\n"));
             } else {
                 assertTrue(Api.json(res.body()).isArray());
             }

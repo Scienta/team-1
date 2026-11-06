@@ -32,6 +32,9 @@ Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 
 ## Commands
 
+> The `programme-export` suite (and `scheduling`, cell by cell) empties programme cells: `clearWholeProgramme()`
+> deletes all 15. Fine in CI and locally; don't point the suite at `TEAM_URL`, it would wipe the live programme.
+
 ```bash
 cd black-box-tests
 npm ci

@@ -55,6 +55,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Scheduling: successful `DELETE` | `200` with removed `Entry` (`room`, `slot`, `start`, `end`, `talkId`) |
 | Scheduling: order of `PUT` checks | `404` room/slot → `400` body → `404` talk → `409` status → fit → already-elsewhere → occupied → speaker clash |
 | Scheduling: withdraw / late co-speakers after place | programme `Entry` stays until `DELETE` |
+| Programme export: test setup | every test starts from an empty programme (`clearWholeProgramme()`); job-local or local database only, never `TEAM_URL` |
 | Programme export: empty programme | `GET /programme` `200 []`; `GET /programme.csv` `200`, header line only |
 | Programme export: row order | slot `S1`..`S5`, then room `R1`, `R2`, `R3`; same in JSON and CSV |
 | Programme export: talk withdrawn / rejected after scheduling | still a row, current title/format/speakers, no status field |
