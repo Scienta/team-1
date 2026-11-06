@@ -57,6 +57,9 @@ public class ConferenceService {
 
     @Transactional
     public Map<String, Object> registerSpeaker(SpeakerForm form) {
+        if (!Utils.isValidEmail(form.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
+        }
         if (speakerDao.emailTaken(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
@@ -227,10 +230,10 @@ public class ConferenceService {
         talk.averageRating = count == 0 ? null : calculateAverage(total, count);
     }
 
-    // 1 decimal, half up (4.25 -> 4.3)
+    // 1 decimal, half up (4.25 -> 4.3), as the ratings spec says. Not Utils.roundRating: that cuts off, for
+    // /admin/stats only.
     private Double calculateAverage(long total, int count) {
         return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
-        // return Utils.roundRating((double) total / count);
     }
 
     // ---------------------------------------------------------------- co-speakers

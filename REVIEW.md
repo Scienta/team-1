@@ -29,6 +29,18 @@ Agent instructions live in `.claude/rules/team-workflow.md` (root `CLAUDE.md` on
 - Humans run `workflow/review-checklist.md` against the harness request plus our decisions file
 - Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL, harness `/feedback` and timeline for FAULTY checks
 - Deploy workflow must stay green (`/health` with new `GIT_SHA`)
+- Test review against the base specs, rule by rule, while all harness checks were green: ratings had
+  no tests at all (`RatingsTest` is new), and `SpeakersTest`/`TalksTest` now cover their specs; a
+  shared `Api` test helper replaces copy-pasted HTTP code. Writing the missing tests first caught
+  bugs the harness hadn't flagged:
+  - `ratedAtDisplay` depended on the JDK: on Java 20+ the US short format puts a narrow no-break
+    space (U+202F) before AM/PM. Production runs Java 11, so the harness never saw it; a local run on
+    Java 21 did. Fixed with an explicit `M/d/yy, h:mm a` pattern.
+  - SQL injection in the admin search (`?q=' OR '1'='1` returned every speaker). Fixed with a bound
+    parameter.
+  - `POST /speakers` took any non-blank string as an email. Now checked with `Utils.isValidEmail`;
+    before shipping we replayed the harness's 901 logged registrations: every email it had accepted
+    still passes.
 
 ## 3. Claim log
 

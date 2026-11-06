@@ -4,11 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Date;
-import java.util.TimeZone;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class UtilsTest {
@@ -33,19 +31,41 @@ class UtilsTest {
         assertEquals("Workshop", Utils.capitalize("WORKSHOP"));
     }
 
-    // Averages are shown with one decimal, cut off (CFP-61)
+    // Only /admin/stats uses this; it cuts off on purpose (CFP-61). A talk's averageRating rounds half up instead
+    // (ConferenceService.calculateAverage, tested in RatingsTest).
     @Test
-    void roundsRatingToOneDecimal() {
+    void roundRatingCutsOffForTheAdminStatistics() {
         assertEquals(4.2, Utils.roundRating(4.25));
         assertEquals(3.6, Utils.roundRating(3.6666));
         assertEquals(4.5, Utils.roundRating(4.5));
     }
 
-    @Disabled("flaky on Jenkins")
+    // ratedAtDisplay (specs/ratings/spec.md): UTC, no leading zeros, 12-hour clock, one ordinary space before AM/PM.
     @Test
-    void nowIsCurrentTime() {
-        SimpleDateFormat f = new SimpleDateFormat(Utils.DB_DATE_TIME);
-        f.setTimeZone(TimeZone.getTimeZone("UTC"));
-        assertEquals(f.format(new Date()), Utils.now());
+    void usShortIsTheLegacyReviewerFormatInUtc() {
+        assertEquals("11/4/26, 1:05 PM", Utils.usShort(utc("2026-11-04T13:05:59Z")));
+        assertEquals("11/4/26, 12:00 AM", Utils.usShort(utc("2026-11-04T00:00:00Z")));
+        assertEquals("11/4/26, 12:30 PM", Utils.usShort(utc("2026-11-04T12:30:00Z")));
+        assertEquals("1/2/27, 9:07 AM", Utils.usShort(utc("2027-01-02T09:07:00Z")));
+        assertEquals("12/31/26, 11:59 PM", Utils.usShort(utc("2026-12-31T23:59:00Z")));
+    }
+
+    @Test
+    void usShortIsPlainAsciiOnEveryJdk() {
+        String shown = Utils.usShort(utc("2026-11-04T13:05:00Z"));
+        assertTrue(shown.chars().allMatch(c -> c < 128), "non-ASCII character in " + shown);
+    }
+
+    @Test
+    void nowParsesBackInTheDatabaseFormat() {
+        String now = Utils.now();
+        assertTrue(now.matches("\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d"), now);
+        assertEquals(utc("2026-11-04T13:05:09Z"), Utils.parse("2026-11-04 13:05:09"));
+        long drift = Math.abs(System.currentTimeMillis() - Utils.parse(now).getTime());
+        assertTrue(drift < 60_000, "now() is " + drift + " ms off the clock");
+    }
+
+    private static Date utc(String instant) {
+        return Date.from(Instant.parse(instant));
     }
 }
