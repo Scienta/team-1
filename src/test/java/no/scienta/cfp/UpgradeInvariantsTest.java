@@ -202,6 +202,27 @@ class UpgradeInvariantsTest {
         assertEquals(404, api.get("/speakers/987654321/").statusCode());
     }
 
+    // R11, review #2: Spring 5 matched a trailing slash on every mapping, so the talk, rating and co-speaker URLs keep
+    // answering with one too, without a redirect.
+    @Test
+    void everyUrlWithATrailingSlashWorksLikeWithout() {
+        long speaker = api.newSpeaker();
+        long other = api.newSpeaker();
+        long talk = api.newTalk(speaker, "PRESENTATION").get("id").asLong();
+        String json = "{\"title\":\"Slash\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":" + speaker + "}";
+        assertEquals("WORKSHOP", Api.body(api.post("/talks/", json), 201).get("format").asString());
+        assertEquals(4, Api.body(api.put("/talks/" + talk + "/ratings/2/", "{\"score\":4}"), 200).get("score").asInt());
+        assertEquals(Api.body(api.get("/talks/" + talk), 200), Api.body(api.get("/talks/" + talk + "/"), 200));
+        assertEquals(Api.body(api.get("/talks?speakerId=" + speaker), 200),
+                Api.body(api.get("/talks/?speakerId=" + speaker), 200));
+        assertEquals(1, Api.body(api.put("/talks/" + talk + "/co-speakers/" + other + "/", null), 200)
+                .get("coSpeakerIds").size());
+        assertEquals(0, Api.body(api.send("DELETE", "/talks/" + talk + "/co-speakers/" + other + "/", null), 200)
+                .get("coSpeakerIds").size());
+        assertEquals(200, api.get("/admin/stats/").statusCode());
+        assertEquals(404, api.get("/talks/987654321/").statusCode());
+    }
+
     private static List<String> names(JsonNode node) {
         List<String> names = new ArrayList<>();
         names.addAll(node.propertyNames());

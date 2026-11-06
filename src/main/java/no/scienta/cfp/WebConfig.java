@@ -25,14 +25,15 @@ import org.springframework.web.filter.UrlHandlerFilter;
 public class WebConfig {
 
     /**
-     * The legacy web client puts a slash at the end of speaker URLs (specs/speakers/spec.md). Spring 6 stopped
-     * matching those, so the slash is dropped before the request is mapped: no redirect, POST /speakers/ stays 201.
+     * The legacy web client puts a slash at the end of speaker URLs (specs/speakers/spec.md), and Spring 5 matched a
+     * trailing slash on every mapping. Spring 6 stopped matching those, so the slash is dropped before the request is
+     * mapped, on every path as before: no redirect, POST /speakers/ stays 201.
      * Ordered after {@link RequestLoggingFilter}, so the log still shows the URL as sent.
      */
     @Bean
     FilterRegistrationBean<UrlHandlerFilter> trailingSlashFilter() {
         FilterRegistrationBean<UrlHandlerFilter> registration = new FilterRegistrationBean<>(
-                UrlHandlerFilter.trailingSlashHandler("/speakers/**").wrapRequest().build());
+                UrlHandlerFilter.trailingSlashHandler("/**").wrapRequest().build());
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
         return registration;
     }

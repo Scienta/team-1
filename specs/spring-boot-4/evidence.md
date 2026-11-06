@@ -8,9 +8,10 @@ Spec: `specs/spring-boot-4/spec.md` (D12). Collected 2026-11-06 on a developer m
   ran), against a fresh `postgres:16-alpine` database.
 - **After:** the Docker image built from this branch (`docker build --platform linux/amd64`; Spring Boot 4.1.2,
   `eclipse-temurin:25-jre`), against a freshly recreated database in the same Postgres container.
-- Both run with `PGHOST=<postgres container> PGSSLMODE=disable` on port 8080. The script below ran against each (78
+- Both run with `PGHOST=<postgres container> PGSSLMODE=disable` on port 8080. The script below ran against each (96
   requests: every base endpoint, an unrated and a rated talk, co-speakers, every error case of R9-R11, `/health`,
-  `/actuator/*`, `/admin/*`, `/openapi.yaml`, `/swagger-ui.html`, framework 404/405/415). It prints status,
+  `/actuator/*`, `/admin/*`, `/openapi.yaml`, `/swagger-ui.html`, framework 404/405/415, and since review #2 a
+  trailing-slash variant of every endpoint). It prints status,
   Content-Type, redirect and body per request; only `timestamp`, `submittedAt`, `ratedAtDisplay` and `generated`
   values are masked (ids are deterministic on a fresh database; dates are compared as is, same day). Then
   `diff before.txt after.txt`.
@@ -20,13 +21,15 @@ Spec: `specs/spring-boot-4/spec.md` (D12). Collected 2026-11-06 on a developer m
 Status codes, Content-Types (incl. `charset=UTF-8` on errors), redirects, field names and order, and every
 success body are identical, including `submittedOn`, `averageRating: null`/`4.3`, `bio: null`, `ratedAtDisplay`'s
 shape, the trailing-slash URLs, JSON comments, unknown fields, `/admin/stats`, `/admin/talks.csv` (`6. nov. 2026`,
-D11), `/openapi.yaml` (same SHA-1) and `/swagger-ui.html` (302 to `/swagger-ui/index.html`).
+D11), `/openapi.yaml` (same SHA-1) and `/swagger-ui.html` (302 to `/swagger-ui/index.html`). Every trailing-slash
+URL (`POST /talks/`, `GET /talks/1/`, `GET /talks/?sort=rating`, `PUT /talks/1/ratings/5/`, co-speakers, `/speakers/1/talks/`,
+`PUT /speakers/2/`, `/admin/*/`, `/health/`, `/actuator/info/`, `/actuator/health/`, `/openapi.yaml/`) answers as on 2.7.
 
-14 lines differ:
+15 lines differ (the second is the `/actuator/info/` request):
 
 | Request(s) | Difference | Verdict |
 |---|---|---|
-| `GET /actuator/info` | `11.0.32.1 / 2.7.18 / 5.3.31` -> `25.0.5 / 4.1.2 / 7.0.10` | Expected (R3) |
+| `GET /actuator/info`, `GET /actuator/info/` | `11.0.32.1 / 2.7.18 / 5.3.31` -> `25.0.5 / 4.1.2 / 7.0.10` | Expected (R3) |
 | `GET /speakers/abc`, `GET /talks/abc`, `PUT /talks/1/ratings/abc` (400) | `message` wording from Spring 7: `Method parameter 'id': Failed to convert ...; For input string: "abc"` instead of `Failed to convert ...; nested exception is java.lang.NumberFormatException: ...` | Not changed, see below |
 | Malformed JSON on `POST /speakers`, `POST /talks`, `PUT .../ratings/1`, `"speakerId":"x"` (400) | `message` from Jackson 3 without the `nested exception is ...` / `at [Source: ...]` tail (`JSON parse error: Unexpected end-of-input within/between Object entries`) | Not changed, see below |
 | `POST /speakers` with `text/plain` (415), `DELETE /talks` (405), `GET /nope` (404) | `message` wording: `Content-Type '...' is not supported.`, `Method 'DELETE' is not supported.`, `No static resource nope.` | Not changed, see below |
@@ -40,7 +43,8 @@ Differences found and fixed during the comparison and the tests (each now pinned
 
 - `submittedAt` came out as `...Z`, `submittedOn` as a full timestamp: explicit formats on `TalkDto` (D4).
 - Property order became alphabetical: `spring.jackson.mapper.sort-properties-alphabetically=false` (D8).
-- `POST /speakers/`, `GET /speakers/{id}/` were 404: `UrlHandlerFilter` for `/speakers/**` (D6).
+- `POST /speakers/`, `GET /speakers/{id}/` were 404: `UrlHandlerFilter` (D6), on every path since review #2, as
+  Spring 5 matched a trailing slash on every mapping (`GET /talks/1/` etc. were 404 too).
 - JSON comments rejected, `message` missing from error bodies: Boot 4 property names
   (`spring.jackson.json.read.allow-java-comments`, `spring.web.error.*`; also `spring.servlet.encoding.force`, the
   old `server.servlet.encoding.force` is an error-level deprecation in Boot 4).
@@ -48,8 +52,16 @@ Differences found and fixed during the comparison and the tests (each now pinned
 - Error responses lost `;charset=UTF-8`: UTF-8 forced on the error dispatch too (`WebConfig`).
 - `/actuator/health` gained `"groups":["liveness","readiness"]`: `management.endpoint.health.probes.enabled=false`.
 
-Not done here: `examples/run.sh` (Hurl isn't installed on this machine), and the after-deploy check of
-`/actuator/info` on `TEAM_URL` and the harness feedback (D12 (2) and (4)).
+`examples/run.sh` (Hurl 7 via `winget install Orange-OpenSource.Hurl`) passes against the 4.x image: 5 files, 40
+requests, including the new `examples/spring-boot-4.hurl`, which fails on the 2.7 image (versions 2.7.18 / 5.3.31 /
+11.0.32.1), as it should.
+
+## After merge (D12 (4), still open)
+
+1. Once the deploy job is green, `curl $TEAM_URL/actuator/info` shows `springBoot` 4.1.2, `springFramework` 7.0.10,
+   `java` 25.x, and `examples/run.sh $TEAM_URL` passes.
+2. The harness feedback for the base features (speakers, talks, ratings) and co-speakers stays green for the next
+   ticks; any FAULTY check gets checked in the logs (`.github/fagdag/logs.sh`).
 
 ## The script
 
@@ -164,4 +176,23 @@ r GET /nope
 r DELETE /talks
 r GET /actuator/health
 r GET /health
+# trailing slashes on every endpoint (review #2)
+r POST /talks/ '{"title":"Slash","format":"WORKSHOP","level":"BEGINNER","speakerId":2}'
+r GET /talks/1/
+r GET /talks/
+r GET '/talks/?speakerId=1'
+r GET '/talks/?sort=rating'
+r PUT /talks/1/ratings/5/ '{"score":3}'
+r PUT /talks/2/co-speakers/1/
+r DELETE /talks/2/co-speakers/1/
+r GET /speakers/1/talks/
+r PUT /speakers/2/ '{"name":"Grace Hopper","email":"grace@example.com"}'
+r GET /speakers/search/?q=grace
+r GET /talks/987654321/
+r GET /admin/stats/
+r GET /admin/talks.csv/
+r GET /health/
+r GET /actuator/info/
+r GET /actuator/health/
+r GET /openapi.yaml/
 ```
