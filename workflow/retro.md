@@ -4,7 +4,7 @@ Sources: harness `/feedback` and `/feedback/timeline` at tick 201–203, product
 `git log origin/main`. Score at tick 201: total 1132.4, earned 1236.13, **bled −103.73**.
 The harness doesn't split bleed per feature. The "≈ bled" column is an estimate: 2·V/N points per
 FAULTY check per tick (V = feature value, N = its number of checks). That rate is calibrated on the
-co-speakers figure in `REVIEW.md` (−10.67 by tick 75).
+co-speakers figure in `team-1-REVIEW.md` (−10.67 by tick 75).
 
 ## Incidents
 

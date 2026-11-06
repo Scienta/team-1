@@ -31,4 +31,4 @@ Reviewer findings and what we did (`specs/<slug>/review.md`):
 - [ ] `examples/<slug>.hurl` green against TEAM_URL
 - [ ] no 5xx in `.github/fagdag/logs.sh`
 - [ ] harness: every claimed feature still all OK
-- [ ] a person claims; claim-log row added to `REVIEW.md`
+- [ ] a person claims; claim-log row added to `team-1-REVIEW.md`

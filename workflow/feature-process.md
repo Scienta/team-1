@@ -23,7 +23,7 @@ person is needed.
 | 7. PR | main session | PR from `workflow/templates/pr.md`. Ready only when `tests` and `black-box` are both green on the head commit |
 | 8. Merge | **person** | merge to `main` deploys; the deploy waits for the tests to pass |
 | 9. Verify | main session | `/health` SHA, Hurl green on TEAM_URL, no 5xx in logs, all claimed checks OK, harness probes (`harness-heuristics.md`) run on TEAM_URL incl. a parallel burst |
-| 10. Claim | **person** | claims on the harness; claim-log row in `REVIEW.md` |
+| 10. Claim | **person** | claims on the harness; claim-log row in `team-1-REVIEW.md` |
 
 ## Why it's shaped like this
 
