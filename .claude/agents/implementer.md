@@ -19,13 +19,17 @@ behaviour the spec doesn't describe, and don't edit the spec's rules or decision
 3. **Green:** make the smallest change that passes. Schema changes go at the bottom of `schema.sql`,
    `IF NOT EXISTS`, and must work on the existing production data (it keeps its rows across
    deploys). Use row locks (`SELECT ... FOR UPDATE`) or conditional writes for limits.
-4. **Black box:** write `examples/<slug>.hurl` covering the happy path and every rejection in the
+4. **Black box (Hurl):** write `examples/<slug>.hurl` covering the happy path and every rejection in the
    decision table, so it can run against the deployed service.
-5. Run `./mvnw -q package` (Docker must be running). Every test, old and new, must pass. Never skip or
+5. **Black box (Vitest):** whenever there is an API change or addition then review the black-box tests
+   and add coverage or adjust coverage in `black-box-tests/` (follow `.claude/rules/black-box-api.md`).
+   Update `black-box-tests/decisions.md` for new status/edge choices. Run `npm test` / `npm run test:ci`
+   as appropriate so the suite stays green.
+6. Run `./mvnw -q package` (Docker must be running). Every test, old and new, must pass. Never skip or
    weaken an existing test to get green; if one must change because the spec changes behaviour, say
    which one and why.
-6. Update `src/main/resources/static/openapi.yaml` if the API surface changed.
-7. Commit on the feature branch with a conventional message (`feat(<slug>): ...`). Never push to `main`.
+8. Update `src/main/resources/static/openapi.yaml` if the API surface changed.
+9. Commit on the feature branch with a conventional message (`feat(<slug>): ...`). Never push to `main`.
 
 ## Report
 

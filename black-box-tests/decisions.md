@@ -1,0 +1,35 @@
+# Black-box decisions
+
+Harness base specs leave status codes and some edges open. These are the behaviours this suite asserts (aligned with the running Java app).
+
+| Situation | Status |
+|-----------|--------|
+| Speaker / talk not found | `404` |
+| Invalid / missing speaker fields, invalid email, bio > 500 | `400` |
+| Duplicate email (any case) | `409` |
+| Invalid talk format/level/title/speakerId | `400` |
+| Unknown speakerId on submit | `400` |
+| 4th talk for a speaker | `409` |
+| Invalid rating score / non-positive reviewerId | `400` |
+| Unknown talk on rate | `404` |
+| Invalid `sort` query (not `rating`) | `400` |
+| Health DB up | `200` `{ status: "ok", version }` |
+| Health DB down | `503` `{ status: "db-unavailable", version }` (not exercised in CI happy path) |
+| Third co-speaker | `409` |
+| Main speaker as own co-speaker | `400` (not 409 — harness check-2) |
+| Re-add existing co-speaker | `200`, list unchanged |
+| Remove non-co-speaker / remove twice | `404` (not 200 — harness check-1) |
+| Unknown talk or speaker on co-speaker routes | `404` |
+| Acceptance: unknown talk on `PUT /talks/{id}/status` or `POST /talks/{id}/withdraw` (even with a bad body) | `404` |
+| Acceptance: `status` missing, null, not a string, unknown, not all caps, or `SUBMITTED`/`WITHDRAWN` | `400` |
+| Acceptance: body missing, not JSON, or not a JSON object | `400` |
+| Acceptance: decision not allowed from the current status (ACCEPTED/REJECTED/WITHDRAWN are final) | `409` |
+| Acceptance: `ACCEPTED` with fewer than 2 distinct reviewers (a reviewer rating twice counts once) | `409` |
+| Acceptance: `WAITLISTED` on a waitlisted talk, or repeating a final decision (`ACCEPTED` again, `REJECTED` again) | `200`, unchanged (PO confirmed) |
+| Acceptance: withdraw `speakerId` missing, null or not a whole number (string, decimal, boolean) | `400` |
+| Acceptance: withdraw by anyone but the main speaker (another speaker, a co-speaker, an unregistered id) | `403`, whatever the talk's status |
+| Acceptance: withdraw a `REJECTED` or `WITHDRAWN` talk (by the main speaker) | `409` |
+| Acceptance: order of checks | `404` talk, then `400` body, then `403` who, then `409` state/ratings |
+| Acceptance: withdrawn and rejected talks still count towards the 3-talk limit | 4th talk `409` (PO confirmed) |
+
+Trailing slash: `POST /speakers/` and `GET /speakers/{id}/` work like the slash-free forms.

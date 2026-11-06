@@ -31,6 +31,9 @@ rules sheet. Your team slug is in `.fagdag/team`. In the first minutes:
 
 ## Fagdag: deploy, logs and examples
 
+**GitHub Actions.** Workflow catalogue: [`.github/workflows/README.md`](.github/workflows/README.md)
+(`deploy`, `black-box`, `logs`).
+
 **Deploy.** Every push to `main` runs `.github/workflows/deploy.yml` on a GitHub-hosted runner. It
 builds the root `Dockerfile` with the commit's SHA baked in, pushes it to your registry as
 `app:<sha>` and `app:latest`, and runs `.github/fagdag/rollout.sh`. That redeploys your container,
@@ -89,6 +92,21 @@ pull error only in the `error_message`, and a build error in the Actions log.
 
 **Examples.** `examples/run.sh [base-url]` runs the base specs' published Hurl examples (needs
 [Hurl](https://hurl.dev)). They're the happy path, not a gate. The harness's checks go further.
+
+**Black-box tests.** Deep HTTP coverage lives in `black-box-tests/` (TypeScript + Vitest), separate
+from Maven/Testcontainers. Hurl stays the light smoke path; Vitest covers base features plus
+co-speakers (status codes, limits, concurrency). Details and commands: [`black-box-tests/README.md`](black-box-tests/README.md).
+
+```bash
+docker compose up -d          # scripts assume Postgres is already up
+cd black-box-tests && npm ci
+npm run test:local            # build/start jar → vitest → stop (or npm test if the app is already up)
+```
+
+Use `CFP_BASE_URL` if you point at a non-default origin (not bare `BASE_URL`). CI runs on every PR via
+[`black-box.yml`](.github/workflows/black-box.yml) (see [workflows README](.github/workflows/README.md));
+mark that check required in branch protection. Agent rule: `.claude/rules/black-box-api.md` — review
+and extend this suite on any API change.
 
 **Build and run locally.** Docker is needed for both: the tests start Postgres with
 Testcontainers, and `docker compose up -d` starts a local Postgres matching the defaults in
