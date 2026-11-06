@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,11 +65,11 @@ class AcceptanceTest {
     }
 
     private String status(long talk) {
-        return Api.body(api.get("/talks/" + talk), 200).get("status").asText();
+        return Api.body(api.get("/talks/" + talk), 200).get("status").asString();
     }
 
     private void expect(String status, HttpResponse<String> res) {
-        assertEquals(status, Api.body(res, 200).get("status").asText());
+        assertEquals(status, Api.body(res, 200).get("status").asString());
     }
 
     private void refused(int code, HttpResponse<String> res, long talk, String unchanged) {
@@ -95,7 +95,7 @@ class AcceptanceTest {
     void r1r2_submittedTalkCanBeAcceptedRejectedOrWaitlisted() {
         long a = ratedTalk();
         JsonNode accepted = Api.body(decide(a, "ACCEPTED"), 200); // R1, R7 (decision response)
-        assertEquals("ACCEPTED", accepted.get("status").asText());
+        assertEquals("ACCEPTED", accepted.get("status").asString());
         assertEquals(a, accepted.get("id").asLong());
         assertEquals("ACCEPTED", status(a));
 
@@ -191,7 +191,7 @@ class AcceptanceTest {
         long s1 = api.newSpeaker();
         long submitted = talkOf(s1);
         JsonNode res = Api.body(withdraw(submitted, s1), 200); // R7 (withdraw response)
-        assertEquals("WITHDRAWN", res.get("status").asText());
+        assertEquals("WITHDRAWN", res.get("status").asString());
         assertEquals(submitted, res.get("id").asLong());
         assertEquals("WITHDRAWN", status(submitted));
 
@@ -361,15 +361,15 @@ class AcceptanceTest {
         expect("WAITLISTED", decide(t, "WAITLISTED"));
 
         assertEquals("WAITLISTED", status(t));
-        assertEquals("WAITLISTED", find(Api.body(api.get("/talks"), 200), t).get("status").asText());
-        assertEquals("WAITLISTED", find(Api.body(api.get("/talks?speakerId=" + main), 200), t).get("status").asText());
-        assertEquals("WAITLISTED", find(Api.body(api.get("/talks?sort=rating"), 200), t).get("status").asText());
-        assertEquals("WAITLISTED", find(Api.body(api.get("/speakers/" + main + "/talks"), 200), t).get("status").asText());
+        assertEquals("WAITLISTED", find(Api.body(api.get("/talks"), 200), t).get("status").asString());
+        assertEquals("WAITLISTED", find(Api.body(api.get("/talks?speakerId=" + main), 200), t).get("status").asString());
+        assertEquals("WAITLISTED", find(Api.body(api.get("/talks?sort=rating"), 200), t).get("status").asString());
+        assertEquals("WAITLISTED", find(Api.body(api.get("/speakers/" + main + "/talks"), 200), t).get("status").asString());
         expect("WAITLISTED", api.put("/talks/" + t + "/co-speakers/" + co, null));
         expect("WAITLISTED", api.send("DELETE", "/talks/" + t + "/co-speakers/" + co, null));
 
         expect("WITHDRAWN", withdraw(t, main));
-        assertEquals("WITHDRAWN", find(Api.body(api.get("/speakers/" + main + "/talks"), 200), t).get("status").asText());
+        assertEquals("WITHDRAWN", find(Api.body(api.get("/speakers/" + main + "/talks"), 200), t).get("status").asString());
     }
 
     // D14
@@ -420,7 +420,7 @@ class AcceptanceTest {
                 HttpResponse<String> res = f.join();
                 assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
                 if (res.statusCode() == 200) {
-                    String s = Api.json(res.body()).get("status").asText();
+                    String s = Api.json(res.body()).get("status").asString();
                     if (winner == null) {
                         winner = s;
                     }
@@ -450,7 +450,7 @@ class AcceptanceTest {
                 HttpResponse<String> res = f.join();
                 assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
                 if (res.statusCode() == 200) {
-                    if ("WITHDRAWN".equals(Api.json(res.body()).get("status").asText())) {
+                    if ("WITHDRAWN".equals(Api.json(res.body()).get("status").asString())) {
                         withdrawals++;
                     } else {
                         rejections++;

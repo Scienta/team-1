@@ -64,7 +64,7 @@ class ConferenceServiceTest {
                 .thenReturn(null);
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form()));
         verify(talkDao).insertIfBelow(eq(5), anyString(), anyString(), anyInt(), anyString(), anyLong(), anyLong());
-        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals(HttpStatus.CONFLICT, e.getStatusCode());
         assertEquals("a speaker can submit at most 5 talks", e.getReason());
     }
 
