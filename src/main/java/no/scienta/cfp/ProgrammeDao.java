@@ -21,7 +21,12 @@ public class ProgrammeDao {
 
     /** Locks the fixed slot row so concurrent programme edits for this slot run one after another (R8). */
     public void lockSlot(Venue.Slot slot) {
-        jdbc.queryForList("SELECT slot FROM programme_slot WHERE slot = ? FOR UPDATE", slot.name());
+        List<String> locked = jdbc.queryForList(
+                "SELECT slot FROM programme_slot WHERE slot = ? FOR UPDATE", String.class, slot.name());
+        if (locked.size() != 1) {
+            throw new IllegalStateException("expected one programme_slot row for " + slot.name()
+                    + ", got " + locked.size());
+        }
     }
 
     public Optional<OccupiedCell> find(Venue.Room room, Venue.Slot slot) {
