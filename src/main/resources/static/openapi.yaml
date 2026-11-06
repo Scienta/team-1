@@ -1,0 +1,371 @@
+openapi: 3.0.3
+info:
+  title: CFP API
+  description: |
+    Conference call-for-papers backend. Speakers register, submit talks, and
+    reviewers rate them. Specs for the base features live on the fagdag harness;
+    this document mirrors the implemented HTTP API for local exploration.
+  version: 1.4.2
+servers:
+  - url: http://localhost:8080
+    description: Local
+tags:
+  - name: health
+  - name: speakers
+  - name: talks
+  - name: ratings
+  - name: admin
+    description: Internal/admin helpers; not part of the public harness specs
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Deploy health probe
+      description: |
+        200 when the database answers within 5 s, otherwise 503.
+        `version` is the baked-in `GIT_SHA` (or `dev` locally).
+      operationId: getHealth
+      responses:
+        '200':
+          description: Database reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                version: dev
+        '503':
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: db-unavailable
+                version: dev
+
+  /speakers:
+    post:
+      tags: [speakers]
+      summary: Register a speaker
+      operationId: createSpeaker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewSpeaker'
+            example:
+              name: Ada Lovelace
+              email: ada@example.com
+              bio: Wrote the first program.
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Speaker'
+
+  /speakers/{id}:
+    get:
+      tags: [speakers]
+      summary: Get a speaker
+      operationId: getSpeaker
+      parameters:
+        - $ref: '#/components/parameters/SpeakerId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Speaker'
+        '404':
+          description: Not found
+    put:
+      tags: [admin]
+      summary: Update a speaker (admin typo fix)
+      operationId: updateSpeaker
+      parameters:
+        - $ref: '#/components/parameters/SpeakerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string }
+                bio: { type: string, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Speaker'
+
+  /speakers/{id}/talks:
+    get:
+      tags: [talks]
+      summary: List talks for a speaker (main speaker only)
+      operationId: listTalksForSpeaker
+      parameters:
+        - $ref: '#/components/parameters/SpeakerId'
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Talk'
+
+  /speakers/search:
+    get:
+      tags: [admin]
+      summary: Search speakers
+      operationId: searchSpeakers
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Speaker'
+
+  /talks:
+    get:
+      tags: [talks]
+      summary: List talks
+      description: |
+        Default order is oldest first. `sort=rating` ranks by average rating
+        (desc), then rating count, then oldest; unrated talks last.
+      operationId: listTalks
+      parameters:
+        - name: speakerId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+          description: Only this speaker's talks (main speaker)
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [rating]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Talk'
+    post:
+      tags: [talks]
+      summary: Submit a talk
+      description: At most 3 talks per speaker. Duration is derived from format.
+      operationId: submitTalk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTalk'
+            example:
+              title: Hello, world
+              format: PRESENTATION
+              level: BEGINNER
+              speakerId: 1
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Talk'
+
+  /talks/{id}:
+    get:
+      tags: [talks]
+      summary: Get a talk
+      operationId: getTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Talk'
+        '404':
+          description: Not found
+
+  /talks/{id}/ratings/{reviewerId}:
+    put:
+      tags: [ratings]
+      summary: Rate a talk (create or replace)
+      operationId: rateTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+        - name: reviewerId
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+          description: Positive whole number; reviewers are not registered
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+            example:
+              score: 4
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+
+  /admin/stats:
+    get:
+      tags: [admin]
+      summary: Aggregate statistics
+      operationId: adminStats
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/talks.csv:
+    get:
+      tags: [admin]
+      summary: Export talks as CSV
+      operationId: adminTalksCsv
+      responses:
+        '200':
+          description: CSV attachment
+          content:
+            text/csv:
+              schema: { type: string }
+
+components:
+  parameters:
+    SpeakerId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    TalkId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  schemas:
+    Health:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          enum: [ok, db-unavailable]
+        version:
+          type: string
+
+    NewSpeaker:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string }
+        bio:
+          type: string
+          nullable: true
+          maxLength: 500
+
+    Speaker:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        email: { type: string }
+        bio: { type: string, nullable: true }
+
+    Format:
+      type: string
+      enum: [LIGHTNING_10, LIGHTNING_20, PRESENTATION, WORKSHOP]
+
+    Level:
+      type: string
+      enum: [BEGINNER, INTERMEDIATE, ADVANCED]
+
+    NewTalk:
+      type: object
+      required: [title, format, level, speakerId]
+      properties:
+        title: { type: string }
+        format: { $ref: '#/components/schemas/Format' }
+        level: { $ref: '#/components/schemas/Level' }
+        speakerId: { type: integer, format: int64 }
+
+    Talk:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        format: { $ref: '#/components/schemas/Format' }
+        level: { $ref: '#/components/schemas/Level' }
+        speakerId: { type: integer, format: int64 }
+        durationMinutes: { type: integer }
+        status: { type: string, example: SUBMITTED }
+        submittedAt:
+          type: string
+          description: UTC instant, e.g. 2026-11-04T12:30:05.123+00:00
+          example: '2026-11-04T12:30:05.123+00:00'
+        submittedOn:
+          type: string
+          format: date
+          example: '2026-11-04'
+        averageRating:
+          type: number
+          nullable: true
+          description: Rounded to one decimal; null when unrated
+        ratingCount: { type: integer }
+
+    Rating:
+      type: object
+      properties:
+        talkId: { type: integer, format: int64 }
+        reviewerId: { type: integer, format: int64 }
+        score: { type: integer, minimum: 1, maximum: 5 }
+        ratedAtDisplay:
+          type: string
+          description: US short time in UTC, e.g. 11/4/26, 1:05 PM
+          example: '11/4/26, 1:05 PM'
