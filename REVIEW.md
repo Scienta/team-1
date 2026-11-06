@@ -108,7 +108,10 @@ decision before the claim.
 4 OK on the first run, check-2 FAULTY on `POST /workshops/{id}/registrations`. It rejected a workshop
 (our 409, fine), then accepted a *presentation* and registered for it. We answered 404 ("workshop not
 found", decision D2); the harness wants something else. Now 409, the other option we had put to the
-product owner ("this talk doesn't take registrations"); listing a non-workshop stays 404.
+product owner ("this talk doesn't take registrations"), deployed as `500faa6`. The check then got one
+request further and failed at tick 174 on the next one: listing that presentation's registrations,
+where we still answered 404. Now 200 with an empty list for any existing talk; only an unknown talk
+is 404.
 
 Why our review missed it: the same pattern as acceptance. D2 was a PO-confirmed answer, so the spec,
 `WorkshopRegistrationTest`, the Hurl example and the Vitest suite all pinned 404, and the reviewer

@@ -98,13 +98,15 @@ HTTP 404
 GET {{base_url}}/workshops/999999999/registrations
 HTTP 404
 
-# R2, D2: a talk that isn't a workshop takes no registrations (409; listing it is 404)
+# R2, D2: a talk that isn't a workshop takes no registrations (409); its list is empty (200 [])
 POST {{base_url}}/workshops/{{pres_id}}/registrations
 { "name": "Ada", "email": "ada@example.com" }
 HTTP 409
 
 GET {{base_url}}/workshops/{{pres_id}}/registrations
-HTTP 404
+HTTP 200
+[Asserts]
+jsonpath "$" count == 0
 
 # D3: the id isn't an integer
 POST {{base_url}}/workshops/abc/registrations
