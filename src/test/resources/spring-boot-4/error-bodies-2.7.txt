@@ -1,0 +1,72 @@
+# Error bodies as Spring Boot 2.7.18 (image of 015861e, Java 11) answered them, timestamp masked (R12a).
+# Blocks: '### METHOD PATH CONTENT-TYPE [column-differs]', the request body ('-' for none), the exact 2.7 response body.
+# column-differs: Jackson 2.21 reports the parse error's column differently from 2.7's Jackson 2.13 (evidence.md, Not
+# identical); there the column number is masked and everything else must still match.
+### GET /speakers/abc application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: \"abc\"","path":"/speakers/abc"}
+### GET /talks/abc application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: \"abc\"","path":"/talks/abc"}
+### GET /speakers/abc/talks application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: \"abc\"","path":"/speakers/abc/talks"}
+### PUT /talks/1/ratings/abc application/json
+{"score":3}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: \"abc\"","path":"/talks/1/ratings/abc"}
+### GET /talks?speakerId=abc application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: \"abc\"","path":"/talks"}
+### POST /speakers application/json
+{"name":"Ada",
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Unexpected end-of-input within/between Object entries; nested exception is com.fasterxml.jackson.core.JsonParseException: Unexpected end-of-input within/between Object entries\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 15]","path":"/speakers"}
+### POST /talks application/json column-differs
+{not json
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Unexpected character ('n' (code 110)): was expecting double-quote to start field name; nested exception is com.fasterxml.jackson.core.JsonParseException: Unexpected character ('n' (code 110)): was expecting double-quote to start field name\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 3]","path":"/talks"}
+### PUT /talks/1/ratings/1 application/json
+{"score":
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Unexpected end-of-input within/between Object entries; nested exception is com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input within/between Object entries\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 10]","path":"/talks/1/ratings/1"}
+### POST /talks application/json
+{"title":"T","format":"PRESENTATION","level":"BEGINNER","speakerId":"x"}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Cannot deserialize value of type `java.lang.Long` from String \"x\": not a valid `java.lang.Long` value; nested exception is com.fasterxml.jackson.databind.exc.InvalidFormatException: Cannot deserialize value of type `java.lang.Long` from String \"x\": not a valid `java.lang.Long` value\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 69] (through reference chain: no.scienta.cfp.TalkForm[\"speakerId\"])","path":"/talks"}
+### POST /speakers application/json
+[1]
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Cannot deserialize value of type `no.scienta.cfp.SpeakerForm` from Array value (token `JsonToken.START_ARRAY`); nested exception is com.fasterxml.jackson.databind.exc.MismatchedInputException: Cannot deserialize value of type `no.scienta.cfp.SpeakerForm` from Array value (token `JsonToken.START_ARRAY`)\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 1]","path":"/speakers"}
+### PUT /speakers/1 application/json column-differs
+nope
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Unrecognized token 'nope': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false'); nested exception is com.fasterxml.jackson.core.JsonParseException: Unrecognized token 'nope': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 5]","path":"/speakers/1"}
+### PUT /talks/1/ratings/1 application/json
+[]
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"JSON parse error: Cannot deserialize value of type `java.util.LinkedHashMap<java.lang.String,java.lang.Object>` from Array value (token `JsonToken.START_ARRAY`); nested exception is com.fasterxml.jackson.databind.exc.MismatchedInputException: Cannot deserialize value of type `java.util.LinkedHashMap<java.lang.String,java.lang.Object>` from Array value (token `JsonToken.START_ARRAY`)\n at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 1]","path":"/talks/1/ratings/1"}
+### POST /speakers text/plain
+name=Ada
+{"timestamp":"<T>","status":415,"error":"Unsupported Media Type","message":"Content type 'text/plain;charset=UTF-8' not supported","path":"/speakers"}
+### DELETE /talks application/json
+-
+{"timestamp":"<T>","status":405,"error":"Method Not Allowed","message":"Request method 'DELETE' not supported","path":"/talks"}
+### GET /nope application/json
+-
+{"timestamp":"<T>","status":404,"error":"Not Found","message":"No message available","path":"/nope"}
+### POST /talks application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Required request body is missing: public no.scienta.cfp.TalkDto no.scienta.cfp.TalkController.submit(no.scienta.cfp.TalkForm)","path":"/talks"}
+### PUT /talks/1/ratings/1 application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Required request body is missing: public java.util.Map<java.lang.String, java.lang.Object> no.scienta.cfp.TalkController.rate(java.lang.Long,java.lang.Long,java.util.Map<java.lang.String, java.lang.Object>)","path":"/talks/1/ratings/1"}
+### GET /speakers/search application/json
+-
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Required request parameter 'q' for method parameter type String is not present","path":"/speakers/search"}
+### POST /speakers application/json
+{"name":"   ","email":"x@example.com"}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Validation failed for object='speakerForm'. Error count: 1","errors":[{"codes":["NotBlank.speakerForm.name","NotBlank.name","NotBlank.java.lang.String","NotBlank"],"arguments":[{"codes":["speakerForm.name","name"],"arguments":null,"defaultMessage":"name","code":"name"}],"defaultMessage":"must not be blank","objectName":"speakerForm","field":"name","rejectedValue":"   ","bindingFailure":false,"code":"NotBlank"}],"path":"/speakers"}
+### POST /speakers application/json
+{"name":"Long","email":"long@example.com","bio":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Validation failed for object='speakerForm'. Error count: 1","errors":[{"codes":["Size.speakerForm.bio","Size.bio","Size.java.lang.String","Size"],"arguments":[{"codes":["speakerForm.bio","bio"],"arguments":null,"defaultMessage":"bio","code":"bio"},500,0],"defaultMessage":"size must be between 0 and 500","objectName":"speakerForm","field":"bio","rejectedValue":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bindingFailure":false,"code":"Size"}],"path":"/speakers"}
+# The last two blocks: 2.7 listed two @Valid errors in a random order per request (a HashSet); these are the 2.7
+# answers in SpeakerForm's declaration order, which 4.x now gives every time.
+### POST /speakers application/json
+{}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Validation failed for object='speakerForm'. Error count: 2","errors":[{"codes":["NotBlank.speakerForm.name","NotBlank.name","NotBlank.java.lang.String","NotBlank"],"arguments":[{"codes":["speakerForm.name","name"],"arguments":null,"defaultMessage":"name","code":"name"}],"defaultMessage":"must not be blank","objectName":"speakerForm","field":"name","rejectedValue":null,"bindingFailure":false,"code":"NotBlank"},{"codes":["NotBlank.speakerForm.email","NotBlank.email","NotBlank.java.lang.String","NotBlank"],"arguments":[{"codes":["speakerForm.email","email"],"arguments":null,"defaultMessage":"email","code":"email"}],"defaultMessage":"must not be blank","objectName":"speakerForm","field":"email","rejectedValue":null,"bindingFailure":false,"code":"NotBlank"}],"path":"/speakers"}
+### POST /speakers application/json
+{"email":"x@example.com","bio":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+{"timestamp":"<T>","status":400,"error":"Bad Request","message":"Validation failed for object='speakerForm'. Error count: 2","errors":[{"codes":["NotBlank.speakerForm.name","NotBlank.name","NotBlank.java.lang.String","NotBlank"],"arguments":[{"codes":["speakerForm.name","name"],"arguments":null,"defaultMessage":"name","code":"name"}],"defaultMessage":"must not be blank","objectName":"speakerForm","field":"name","rejectedValue":null,"bindingFailure":false,"code":"NotBlank"},{"codes":["Size.speakerForm.bio","Size.bio","Size.java.lang.String","Size"],"arguments":[{"codes":["speakerForm.bio","bio"],"arguments":null,"defaultMessage":"bio","code":"bio"},500,0],"defaultMessage":"size must be between 0 and 500","objectName":"speakerForm","field":"bio","rejectedValue":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bindingFailure":false,"code":"Size"}],"path":"/speakers"}
