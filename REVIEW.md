@@ -68,6 +68,7 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
 | ratings | claimed (base, tick 0) | 0 | Same; `examples/ratings.hurl` green |
 | co-speakers | claimed | 67 | Implementation `6319fc6` with `CoSpeakersTest` (6 tests, incl. concurrent adds) and `examples/co-speakers.hurl`; the harness's checks hadn't yet run against it. *(Claimer: add what else you checked.)* Checks 1 and 2 were FAULTY from tick 68, see section 4. |
 | acceptance | claimed | 140 | PR #5 merged as `fb2e37f`, `/health` on that SHA; `./mvnw package` 85 tests green; `examples/*.hurl` green on TEAM_URL (84 requests); `black-box` Vitest workflow green on the PR; no 5xx in the logs since the deploy; all other claimed checks OK. Spec PO confirmed (4 answers). Checks 3 and 5 FAULTY from tick 141/142, see section 4. |
+| workshop-registration | claimed | 161 | PR #6 merged as `3200676`, deploy green (tests gate it), `/health` on that SHA; `./mvnw package` 116 tests green (31 for this feature, each citing its rule; a 60-request rush gives exactly 20×201, and removing the row lock makes a rush test fail with 21); independent reviewer: no blockers, 3 nits fixed (`specs/workshop-registration/review.md`); `examples/workshop-registration.hurl` green on TEAM_URL (77 requests); no 5xx in the logs since the deploy; the harness's own registrations got 201/409/200 from the new version; all other claimed checks OK at tick 156. Spec PO confirmed (4 answers). |
 
 Score at workflow setup (tick ~2): total 12, all base checks OK, service not down.
 
@@ -102,6 +103,29 @@ layer (spec, `AcceptanceTest`, `examples/acceptance.hurl`, the Vitest suite) pin
 reviewer judged against the spec. The feature request's own words said "final". Lesson: when a PO
 answer loosens a rule the request states, keep the request's wording, or flag it as the riskiest
 decision before the claim.
+
+**workshop-registration, tick 162: a talk that isn't a workshop.** Claimed at tick 161; checks 1, 3 and
+4 OK on the first run, check-2 FAULTY on `POST /workshops/{id}/registrations`. It rejected a workshop
+(our 409, fine), then accepted a *presentation* and registered for it. We answered 404 ("workshop not
+found", decision D2); the harness wants something else. Now 409, the other option we had put to the
+product owner ("this talk doesn't take registrations"), deployed as `500faa6`. The check then got one
+request further and failed at tick 174 on the next one: listing that presentation's registrations,
+where we still answered 404. Now 200 with an empty list for any existing talk; only an unknown talk
+is 404.
+
+Why our review missed it: the same pattern as acceptance. D2 was a PO-confirmed answer, so the spec,
+`WorkshopRegistrationTest`, the Hurl example and the Vitest suite all pinned 404, and the reviewer
+judged against the spec. The status code was a coin toss between two readings, and the PO picked the
+one the harness doesn't use. Seen before the claim: the harness's own traffic in our logs showed it
+registering for talks before the claim, but only on the old version (404 from a missing route), so
+nothing told us which code it wanted.
+
+**acceptance, ticks 162–163: waitlisting twice.** After the D7 fix (`297f7d6`) check-3 was OK for ten
+ticks, then FAULTY again: it waitlisted a talk and waitlisted it again, and we answered the repeat with
+200 (D6, also "idempotent" from the PO). check-3 picks the repeated decision at random, so it only
+failed when it drew `WAITLISTED`. Now any repeat of the same decision is 409. Lesson: an intermittent
+FAULTY right after a fix is a sibling case of the same rule, not flakiness; we should have dropped D6
+together with D7.
 
 ## 5. Reusable artifacts
 

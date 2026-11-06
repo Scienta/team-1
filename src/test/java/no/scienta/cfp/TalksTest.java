@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,14 +59,14 @@ class TalksTest {
         long speaker = api.newSpeaker();
         JsonNode talk = Api.body(api.post("/talks", talk("Legacy is a feeling", "PRESENTATION", "ADVANCED", speaker)), 201);
 
-        assertEquals("Legacy is a feeling", talk.get("title").asText());
-        assertEquals("PRESENTATION", talk.get("format").asText());
-        assertEquals("ADVANCED", talk.get("level").asText());
+        assertEquals("Legacy is a feeling", talk.get("title").asString());
+        assertEquals("PRESENTATION", talk.get("format").asString());
+        assertEquals("ADVANCED", talk.get("level").asString());
         assertEquals(speaker, talk.get("speakerId").asLong());
-        assertEquals("SUBMITTED", talk.get("status").asText());
-        String submittedAt = talk.get("submittedAt").asText();
+        assertEquals("SUBMITTED", talk.get("status").asString());
+        String submittedAt = talk.get("submittedAt").asString();
         assertTrue(SUBMITTED_AT.matcher(submittedAt).matches(), submittedAt);
-        assertEquals(submittedAt.substring(0, 10), talk.get("submittedOn").asText());
+        assertEquals(submittedAt.substring(0, 10), talk.get("submittedOn").asString());
         long age = Duration.between(OffsetDateTime.parse(submittedAt), OffsetDateTime.now(ZoneOffset.UTC)).abs().toSeconds();
         assertTrue(age < 60, "submittedAt is " + age + " s off the clock");
 

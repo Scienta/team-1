@@ -40,11 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up Java 11
+      - name: Set up Java (.java-version)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "11"
+          java-version-file: .java-version
           cache: maven
 
       - name: Set up Node

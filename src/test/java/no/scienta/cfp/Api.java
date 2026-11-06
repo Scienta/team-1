@@ -11,8 +11,8 @@ import java.net.http.HttpResponse;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * A small HTTP client for the tests that run the real app on a random port: sends JSON, reads JSON, and creates
@@ -63,11 +63,7 @@ final class Api {
     }
 
     static JsonNode json(String body) {
-        try {
-            return JSON.readTree(body);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return JSON.readTree(body);
     }
 
     /** Registers a speaker with a unique email and returns its id. */

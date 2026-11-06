@@ -26,7 +26,7 @@ Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
    docker compose up -d
    ```
 
-2. Node `>=20`, Java 11+ for building the jar.
+2. Node `>=20`, and the Java version in `/.java-version` (25) for building the jar.
 
 ## Commands
 

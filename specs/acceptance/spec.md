@@ -25,7 +25,7 @@ State table (rows: current status, columns: request). ✔ = 200 and the new stat
 | From \ To   | ACCEPTED        | REJECTED | WAITLISTED | withdraw |
 |-------------|-----------------|----------|------------|----------|
 | SUBMITTED   | ✔ if ≥2 reviewers | ✔      | ✔          | ✔        |
-| WAITLISTED  | ✔ if ≥2 reviewers | ✔      | ✔ no change (D6) | ✔        |
+| WAITLISTED  | ✔ if ≥2 reviewers | ✔      | ✘ (D6)     | ✔        |
 | ACCEPTED    | ✘ (D7)          | ✘        | ✘          | ✔        |
 | REJECTED    | ✘               | ✘ (D7)   | ✘          | ✘        |
 | WITHDRAWN   | ✘               | ✘        | ✘          | ✘        |
@@ -54,7 +54,7 @@ both green on the harness).
 | D3 | body missing or not JSON | 400 | Spring's default for an unreadable body |
 | D4 | decision not allowed from the current status (✘ in the table) | 409 | the talk's state refuses it, like the 3-talk limit |
 | D5 | `ACCEPTED` with fewer than 2 distinct reviewers | 409 | state-dependent (more ratings make it pass), like D4 |
-| D6 | `WAITLISTED` on a talk that is already `WAITLISTED` | 200, unchanged (idempotent) | **PO confirmed** (question 2) |
+| D6 | `WAITLISTED` on a talk that is already `WAITLISTED` | 409, unchanged | **Harness**: acceptance/check-3 was FAULTY on our 200 (tick 162-163), against the PO answer to question 2. The same decision twice is refused, like D7 |
 | D7 | the same final decision again (`ACCEPTED` → `ACCEPTED`, `REJECTED` → `REJECTED`) | 409, unchanged, like any decision on a final talk (D4) | **Harness**: acceptance/check-3 and check-5 were FAULTY on our 200 (tick 141-142), against the PO answer to question 5. "The committee's decision is final" wins |
 | D8 | withdraw: `speakerId` missing, null or not an integer | 400 | invalid request |
 | D9 | withdraw: `speakerId` is a registered speaker who isn't the talk's main speaker (including a co-speaker) | 403 | "nobody else can withdraw it": who asks, not the talk's state. A co-speaker is "somebody else": **PO question 1, answered** |
@@ -100,6 +100,7 @@ Ranked by how likely a wrong guess fails a harness check. Answers go here, with 
    still shows only the talks where they are the main speaker"). So a co-speaker gets 403 (D9).
 2. Is waitlisting an already waitlisted talk allowed (no change) or refused?
    **Answered (PO, relayed by a team member, 2026-11-06): it's idempotent: 200, no change.** D6.
+   **Overruled by the harness** (acceptance/check-3, tick 162-163): D6 is now 409. The PO has been told.
 3. Does a withdrawn or rejected talk still count towards the speaker's limit of 3 talks?
    **Answered (PO, relayed by a team member, 2026-11-06): yes, the limit applies to all talks.** D13. No code change:
    `TalkDao.insertIfBelow` already counts every talk of the speaker.

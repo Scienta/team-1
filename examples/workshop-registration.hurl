@@ -98,13 +98,15 @@ HTTP 404
 GET {{base_url}}/workshops/999999999/registrations
 HTTP 404
 
-# R2, D2: a talk that isn't a workshop is no workshop
+# R2, D2: a talk that isn't a workshop takes no registrations (409); its list is empty (200 [])
 POST {{base_url}}/workshops/{{pres_id}}/registrations
 { "name": "Ada", "email": "ada@example.com" }
-HTTP 404
+HTTP 409
 
 GET {{base_url}}/workshops/{{pres_id}}/registrations
-HTTP 404
+HTTP 200
+[Asserts]
+jsonpath "$" count == 0
 
 # D3: the id isn't an integer
 POST {{base_url}}/workshops/abc/registrations
@@ -183,7 +185,7 @@ POST {{base_url}}/workshops/{{sub_id}}/registrations
 { "name": "Ada" }
 HTTP 400
 
-# D18: an unknown talk or a non-workshop beats a bad body
+# D18: an unknown talk beats a bad body, and a bad body beats "not a workshop"
 POST {{base_url}}/workshops/999999999/registrations
 Content-Type: application/json
 ```
@@ -193,7 +195,7 @@ HTTP 404
 
 POST {{base_url}}/workshops/{{pres_id}}/registrations
 {}
-HTTP 404
+HTTP 400
 
 # R6, D9, D12: the same email again, in another case, or with whitespace around it, is 409
 POST {{base_url}}/workshops/{{ws_id}}/registrations

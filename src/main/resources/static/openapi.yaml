@@ -302,7 +302,7 @@ paths:
       summary: Accept, reject or waitlist a talk
       description: |
         From SUBMITTED or WAITLISTED. ACCEPTED and REJECTED are final: any decision on them,
-        the same one included, is 409. Waitlisting a waitlisted talk is 200 and changes nothing. Accepting
+        the same one included, is 409. Waitlisting a waitlisted talk is 409 too. Accepting
         needs ratings from at least two different reviewers.
       operationId: decideTalk
       parameters:
@@ -395,13 +395,13 @@ paths:
         '400':
           description: Id not an integer, body missing or not a JSON object, name or email missing or blank, or email not an email
         '404':
-          description: No such talk, or the talk isn't a workshop
+          description: No such talk
         '409':
-          description: The workshop isn't ACCEPTED, the email is already registered for it, or it has 20 registrations
+          description: The talk isn't a workshop, the workshop isn't ACCEPTED, the email is already registered for it, or it has 20 registrations
     get:
       tags: [workshops]
       summary: A workshop's registrations, first registered first
-      description: Whatever the workshop's status; a withdrawn workshop keeps its list.
+      description: Whatever the workshop's status; a withdrawn workshop keeps its list. A talk that isn't a workshop has an empty list.
       operationId: listWorkshopRegistrations
       responses:
         '200':
@@ -415,7 +415,7 @@ paths:
         '400':
           description: Id not an integer
         '404':
-          description: No such talk, or the talk isn't a workshop
+          description: No such talk
 
   /admin/stats:
     get:

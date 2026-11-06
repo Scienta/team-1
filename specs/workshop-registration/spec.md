@@ -44,7 +44,7 @@ is invalid in itself, 409 = a business rule refuses it given the current state. 
 | # | Case | Our answer | Why |
 |---|---|---|---|
 | D1 | unknown talk id (POST or GET) | 404 | same as `GET /talks/{id}` |
-| D2 | talk exists but its format isn't `WORKSHOP` (POST or GET) | 404 | the path names a *workshop*; a presentation is no workshop. **PO confirmed** (question 1) |
+| D2 | talk exists but its format isn't `WORKSHOP` | POST: 409, nothing stored. GET: 200 `[]` | **Changed after the claim:** the PO confirmed 404 (question 1), but the harness's `workshop-registration/check-2` failed on a 404 for registering for an accepted presentation (tick 162), so POST is now 409 ("this talk doesn't take registrations", the other option in question 1); with that fixed, it failed on the 404 for listing it (tick 174), so GET is 200 with an empty list, as for any existing talk |
 | D3 | path id not an integer (`/workshops/abc/registrations`) | 400 | Spring's default type-mismatch answer, as for `/talks/abc` |
 | D4 | body missing, empty or not JSON | 400 | Spring's default for an unreadable body |
 | D5 | `name` missing, null, not a JSON string, empty or only whitespace | 400 | "required"; same as speaker name (`@NotBlank`). A number is **not** coerced to a string |
@@ -60,7 +60,7 @@ is invalid in itself, 409 = a business rule refuses it given the current state. 
 | D15 | GET on a workshop that isn't (or is no longer) `ACCEPTED` | 200 with its list (`[]` if nobody registered) | R4 requires the list of a withdrawn workshop; listing never depends on status. **PO confirmed** (question 4) |
 | D16 | registration order | ascending `Registration.id`, which is assigned while the workshop row is locked (see Concurrency), so id order = commit order | R9 |
 | D17 | the workshop's own speaker or a co-speaker registers as attendee | allowed (counts towards the 20) | registrations aren't linked to speakers; the request doesn't forbid it |
-| D18 | order of checks (POST) | 404 talk/not-workshop → 400 body → 409 not accepted → 409 duplicate → 409 full | path, input, rules; as acceptance D12 |
+| D18 | order of checks (POST) | 404 unknown talk → 400 body → 409 not a workshop → 409 not accepted → 409 duplicate → 409 full | path, input, rules; as acceptance D12 |
 | D19 | cancelling a registration | not offered (no DELETE endpoint; Spring answers 405) | not in the request's API |
 | D20 | 409 once 20 seats are taken stays 409 after the workshop is withdrawn; registrations of a withdrawn workshop count nowhere else | n/a | registrations are per workshop; nothing else reads them |
 
@@ -121,3 +121,7 @@ Ranked by how likely a wrong guess fails a harness check. Answers go here, with 
 **Answers (2026-11-06, asked by Sindre Mehus):** the product owner confirmed our answers to all four as written:
 not a workshop is 404 (D2), not accepted is 409 (D8), a second registration with the same email is 409 (D9), and
 the list is always visible (D15).
+
+**After the claim (tick 162):** the harness disagreed with answer 1. Its check-2 registers for an accepted presentation
+and failed on our 404, so registering for a talk that isn't a workshop is now 409 (D2). At tick 174 it then failed on
+the 404 for listing that presentation, so the list of any existing talk is now 200 (`[]` for a non-workshop).

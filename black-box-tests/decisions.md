@@ -25,7 +25,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Acceptance: body missing, not JSON, or not a JSON object | `400` |
 | Acceptance: decision not allowed from the current status (ACCEPTED/REJECTED/WITHDRAWN are final) | `409` |
 | Acceptance: `ACCEPTED` with fewer than 2 distinct reviewers (a reviewer rating twice counts once) | `409` |
-| Acceptance: `WAITLISTED` on a waitlisted talk | `200`, unchanged (PO confirmed) |
+| Acceptance: `WAITLISTED` on a waitlisted talk | `409`, unchanged (not 200 — harness acceptance/check-3) |
 | Acceptance: repeating a final decision (`ACCEPTED` again, `REJECTED` again) | `409`, unchanged (not 200 — harness acceptance/check-3, check-5) |
 | Acceptance: withdraw `speakerId` missing, null or not a whole number (string, decimal, boolean) | `400` |
 | Acceptance: withdraw by anyone but the main speaker (another speaker, a co-speaker, an unregistered id) | `403`, whatever the talk's status |
@@ -39,7 +39,8 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Workshops: same email again for the same workshop (case-insensitive, surrounding whitespace incl. tabs/line breaks ignored) | `409` (PO confirmed) |
 | Workshops: 21st registration, also in a parallel rush | `409`; exactly 20 stored |
 | Workshops: listing a workshop in any status (withdrawn keeps its list) | `200` (PO confirmed) |
-| Workshops: order of checks | `404` talk/not a workshop, then `400` body, then `409` |
+| Workshops: registering for a talk that isn't a `WORKSHOP` | `409` (not 404 — harness check-2, tick 162); listing it is `200 []` (not 404 — check-2, tick 174) |
+| Workshops: order of checks | `404` unknown talk, then `400` body, then `409` (not a workshop, not accepted, duplicate, full) |
 | Workshops: `DELETE /workshops/{id}/registrations` | `405` |
 
 Trailing slash: `POST /speakers/` and `GET /speakers/{id}/` work like the slash-free forms.

@@ -53,7 +53,7 @@ describe("acceptance", () => {
       ["SUBMITTED", "withdraw", 200, "WITHDRAWN"],
       ["WAITLISTED", "ACCEPTED", 200, "ACCEPTED"],
       ["WAITLISTED", "REJECTED", 200, "REJECTED"],
-      ["WAITLISTED", "WAITLISTED", 200, "WAITLISTED"], // D6
+      ["WAITLISTED", "WAITLISTED", 409, "WAITLISTED"], // D6 (harness acceptance/check-3)
       ["WAITLISTED", "withdraw", 200, "WITHDRAWN"],
       ["ACCEPTED", "ACCEPTED", 409, "ACCEPTED"], // D7 (harness acceptance/check-3)
       ["ACCEPTED", "REJECTED", 409, "ACCEPTED"],

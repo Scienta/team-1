@@ -47,7 +47,7 @@ class AcceptanceServiceTest {
         ResponseStatusException e = assertThrows(ResponseStatusException.class,
                 () -> service.decide(1L, "{\"status\":\"ACCEPTED\"}"));
 
-        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals(HttpStatus.CONFLICT, e.getStatusCode());
         assertEquals("a ACCEPTED talk can't be ACCEPTED", e.getReason());
         verify(talkDao, never()).updateStatusIf(anyLong(), anyString(), anyString());
     }
