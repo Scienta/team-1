@@ -264,7 +264,8 @@ describe("programme-export", () => {
         exports.push(request("/programme.csv").then((r) => ({ ...r, csv: true })));
       }
     }
-    for (const e of await Promise.all(edits)) expect([200, 404, 409]).toContain(e.status);
+    // PUT: 200/409; DELETE: 204 success, 404 empty (scheduling D12 after harness tick 200-203)
+    for (const e of await Promise.all(edits)) expect([200, 204, 404, 409]).toContain(e.status);
     for (const r of await Promise.all(exports)) {
       expect(r.status, r.text).toBe(200);
       if (r.csv) {
