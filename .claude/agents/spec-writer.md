@@ -15,6 +15,8 @@ from without guessing. You write the spec only: no production code, no tests.
   conflict) and its JSON shapes.
 - `AGENTS.md`: the deploy contract and platform gotchas (pool of 5, row locks not advisory locks,
   `SET LOCAL`, ephemeral filesystem).
+- `workflow/harness-heuristics.md`: what the harness probes and which answers it has accepted or
+  failed (H1...). It outranks our own guesses.
 
 ## Read the request rigidly
 
@@ -35,6 +37,18 @@ Use `workflow/templates/feature-spec.md`. Every rule gets an id (R1, R2, ...) th
 Every case the request leaves open goes in the decision table with our answer and a one-line reason.
 Prefer the conventions the codebase already uses, so the harness sees a consistent API.
 
+Check every decision row against `workflow/harness-heuristics.md` and cite the item it follows (`H3`).
+Where the harness has already shown us the answer, follow it:
+- 404 only for an unknown id in the path; an unknown id in the body is 400 (H1, H2);
+- an existing resource that a rule refuses is 409, and a GET on it stays 200. Decide POST and GET on one
+  resource together (H3, H10);
+- use the status and body the API block declares: no declared response body means 204 (H6);
+- a repeat of a "final" or "once" action is 409, and parallel duplicates get exactly one success (H9, H12).
+
+If a decision, **including a "PO confirmed" one**, contradicts the request's wording or a heuristic,
+mark the row `RISK: contradicts H<n>` with both readings. Don't overrule the person; list it in your report.
+Relayed PO answers that softened "final" cost us three incidents (`workflow/retro.md`).
+
 Keep these apart:
 - **Rules**: stated by the request (quote or closely paraphrase).
 - **Decisions**: our choices where the request is silent.
@@ -48,5 +62,5 @@ feature isn't claimed costs points.
 ## Report back
 
 In under 15 lines: the spec path, the number of rules and decisions, the open questions verbatim,
-and anything that looked risky (concurrency, a schema change on existing data, changes to
+every `RISK: contradicts H<n>` row, and anything that looked risky (concurrency, a schema change on existing data, changes to
 base-feature responses). Don't claim anything is implemented.

@@ -22,7 +22,7 @@ person is needed.
 | 6. Triage | the same `implementer` | agree and fix (with a test), or reject with a reason: `specs/<slug>/review.md` |
 | 7. PR | main session | PR from `workflow/templates/pr.md`; the person is told what's ready |
 | 8. Merge | **person** | merge to `main` deploys; the deploy waits for the tests to pass |
-| 9. Verify | main session | `/health` SHA, Hurl green on TEAM_URL, no 5xx in logs, all claimed checks OK |
+| 9. Verify | main session | `/health` SHA, Hurl green on TEAM_URL, no 5xx in logs, all claimed checks OK, harness probes (`harness-heuristics.md`) run on TEAM_URL incl. a parallel burst |
 | 10. Claim | **person** | claims on the harness; claim-log row in `REVIEW.md` |
 
 ## Why it's shaped like this
@@ -31,6 +31,10 @@ person is needed.
   this; a pushed `feat/<slug>` branch is the "taken" sign, and it doesn't deploy.
 - **A person between spec and code.** Our status-code guesses decide whether harness checks pass, and
   only people can ask the product owner.
+- **The harness outranks our guesses, and relayed answers too.** `harness-heuristics.md` collects what
+  the harness has accepted and failed. Spec, tests and review are checked against it, and a contradicting
+  "PO confirmed" decision is flagged, not silently pinned. Seven post-claim failures taught us this
+  (`retro.md`).
 - **Tests cite rule ids.** The reviewer can see at a glance which rule has no test.
 - **The reviewer starts fresh and can't edit.** It judges the spec and the diff, not the
   implementer's reasoning, so it isn't anchored.

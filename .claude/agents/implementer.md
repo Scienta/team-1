@@ -15,7 +15,14 @@ behaviour the spec doesn't describe, and don't edit the spec's rules or decision
 2. **Red:** write the failing tests first, against the real app (`@SpringBootTest` on a random port,
    like `SpeakersTest`). Name or comment each test with the rule or decision id it proves (`// R3`).
    Every rule and every decision-table row gets at least one test; concurrency rules get a parallel
-   test (as in `TalksTest`). Run them and see them fail for the right reason.
+   test (as in `TalksTest`). Also write the probes the harness sends (`workflow/harness-heuristics.md`),
+   for every new write endpoint:
+   - each refused write followed by a GET that is 200 and shows nothing changed (H3, H10);
+   - each state change repeated with **every** value, not just one (H9);
+   - 10+ parallel requests, identical ones included, asserting exactly one (or exactly N) success, the
+     rest 4xx and never 5xx (H12, H13);
+   - an unknown id in the path (404) and in the body (400), using a huge id like 2000000000 (H1, H2).
+   Run them and see them fail for the right reason.
 3. **Green:** make the smallest change that passes. Schema changes go at the bottom of `schema.sql`,
    `IF NOT EXISTS`, and must work on the existing production data (it keeps its rows across
    deploys). Use row locks (`SELECT ... FOR UPDATE`) or conditional writes for limits.

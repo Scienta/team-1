@@ -33,7 +33,7 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Acceptance: withdraw a `REJECTED` or `WITHDRAWN` talk (by the main speaker) | `409` |
 | Acceptance: order of checks | `404` talk, then `400` body, then `403` who, then `409` state/ratings |
 | Acceptance: withdrawn and rejected talks still count towards the 3-talk limit | 4th talk `409` (PO confirmed) |
-| Workshops: unknown talk, or a talk whose format isn't `WORKSHOP`, on `POST`/`GET /workshops/{id}/registrations` | `404` (PO confirmed) |
+| Workshops: unknown talk on `POST`/`GET /workshops/{id}/registrations` | `404` |
 | Workshops: non-integer id | `400` |
 | Workshops: body missing, not JSON or not an object; `name`/`email` missing, null, blank or not a string; invalid email | `400` |
 | Workshops: registering for a workshop that isn't `ACCEPTED` (submitted, waitlisted, rejected, withdrawn) | `409` (PO confirmed) |

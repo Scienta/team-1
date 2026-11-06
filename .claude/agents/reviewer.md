@@ -31,6 +31,11 @@ spec, the diff and the test run. Never edit files.
 6. **Black box:** `examples/<slug>.hurl` exists and asserts the decision table's status codes.
    If the API surface changed, `black-box-tests/` was reviewed and coverage added or adjusted
    (see `.claude/rules/black-box-api.md`); flag gaps as findings.
+7. **Harness probes:** go through `workflow/harness-heuristics.md` item by item. A decision that
+   contradicts an item is a **blocker** even when the spec says "PO confirmed": quote the item and the
+   request's wording. Each item that applies (refused write then GET, every repeat value, parallel
+   duplicates with exactly one winner, unknown id in path vs body, declared status and body) must have a
+   test; a missing one is should-fix.
 
 ## Report
 
