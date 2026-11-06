@@ -1,7 +1,7 @@
 # Acceptance state machine: our spec
 
 Feature request: `specs/acceptance/request.md` (harness slug `acceptance`, V 2, released at tick 20).
-Status: PO questions asked (3 answered, 1 open)
+Status: PO confirmed (all questions answered)
 
 ## Rules (from the feature request)
 
@@ -61,7 +61,7 @@ both green on the harness).
 | D10 | withdraw: `speakerId` isn't a registered speaker | 403 | also "somebody else"; we don't reveal which ids exist |
 | D11 | withdraw from `REJECTED` or `WITHDRAWN` | 409 | the state refuses it (D4); checked after D8–D10, so a stranger gets 403 whatever the state |
 | D12 | order of checks | 404 talk → 400 body → 403 who (withdraw) → 409 state/ratings | path first, then input, then permission, then rules |
-| D13 | does a withdrawn or rejected talk still count towards the speaker's 3-talk limit? | yes, unchanged | the request doesn't say the limit changes; **PO question 3** |
+| D13 | does a withdrawn or rejected talk still count towards the speaker's 3-talk limit? | yes, unchanged: every talk where they're the main speaker counts, whatever its status | **PO confirmed** (question 3) |
 | D14 | `/admin/stats` `byStatus`, `/admin/talks.csv` status column | show the new statuses as they are | they already read `talk.status` |
 
 ## Concurrency
@@ -100,7 +100,9 @@ Ranked by how likely a wrong guess fails a harness check. Answers go here, with 
    still shows only the talks where they are the main speaker"). So a co-speaker gets 403 (D9).
 2. Is waitlisting an already waitlisted talk allowed (no change) or refused?
    **Answered (PO, relayed by a team member, 2026-11-06): it's idempotent: 200, no change.** D6.
-3. Does a withdrawn or rejected talk still count towards the speaker's limit of 3 talks? (We say yes.)
+3. Does a withdrawn or rejected talk still count towards the speaker's limit of 3 talks?
+   **Answered (PO, relayed by a team member, 2026-11-06): yes, the limit applies to all talks.** D13. No code change:
+   `TalkDao.insertIfBelow` already counts every talk of the speaker.
 4. Can a talk still be rated after it's been decided or withdrawn? Not asked: the request doesn't touch ratings,
    so ratings keep working as today.
 5. Is repeating a final decision (`ACCEPTED` again, `REJECTED` again) idempotent or refused?
