@@ -68,6 +68,7 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
 | ratings | claimed (base, tick 0) | 0 | Same; `examples/ratings.hurl` green |
 | co-speakers | claimed | 67 | Implementation `6319fc6` with `CoSpeakersTest` (6 tests, incl. concurrent adds) and `examples/co-speakers.hurl`; the harness's checks hadn't yet run against it. *(Claimer: add what else you checked.)* Checks 1 and 2 were FAULTY from tick 68, see section 4. |
 | acceptance | claimed | 140 | PR #5 merged as `fb2e37f`, `/health` on that SHA; `./mvnw package` 85 tests green; `examples/*.hurl` green on TEAM_URL (84 requests); `black-box` Vitest workflow green on the PR; no 5xx in the logs since the deploy; all other claimed checks OK. Spec PO confirmed (4 answers). Checks 3 and 5 FAULTY from tick 141/142, see section 4. |
+| workshop-registration | claimed | 161 | PR #6 merged as `3200676`, deploy green (tests gate it), `/health` on that SHA; `./mvnw package` 116 tests green (31 for this feature, each citing its rule; a 60-request rush gives exactly 20×201, and removing the row lock makes a rush test fail with 21); independent reviewer: no blockers, 3 nits fixed (`specs/workshop-registration/review.md`); `examples/workshop-registration.hurl` green on TEAM_URL (77 requests); no 5xx in the logs since the deploy; the harness's own registrations got 201/409/200 from the new version; all other claimed checks OK at tick 156. Spec PO confirmed (4 answers). |
 
 Score at workflow setup (tick ~2): total 12, all base checks OK, service not down.
 
