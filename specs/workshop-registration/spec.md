@@ -54,7 +54,7 @@ is invalid in itself, 409 = a business rule refuses it given the current state. 
 | D9 | the same email (case-insensitive, surrounding whitespace ignored) registers again for the same workshop | 409, nothing stored; the first registration keeps its name and place | R6; same as a duplicate speaker email (409). **PO confirmed** (question 3) |
 | D10 | 21st registration (workshop already has 20) | 409, nothing stored | R5; capacity is a state-dependent rule like the 3-talk limit |
 | D11 | duplicate email on a full workshop | 409 | both checks give 409; which one is checked first doesn't matter to the caller |
-| D12 | email compare | `lower(trim(email))`; stored and returned untrimmed and in original case | R6 + R8. Trimming only makes the duplicate check stricter |
+| D12 | email compare | lower-cased, with surrounding whitespace stripped (space, tab, LF, CR, FF, VT: the set Java's `trim()` strips; `RegistrationDao.normalised`); stored and returned untrimmed and in original case | R6 + R8. Trimming only makes the duplicate check stricter. Postgres `trim()` alone strips only spaces (review finding 1) |
 | D13 | `name` stored as sent (not trimmed) | as sent | "as typed", like speakers; the request doesn't ask for normalising |
 | D14 | unknown extra fields in the body (`{"name","email","phone"}`) | ignored | Spring Boot default; same as the other POSTs |
 | D15 | GET on a workshop that isn't (or is no longer) `ACCEPTED` | 200 with its list (`[]` if nobody registered) | R4 requires the list of a withdrawn workshop; listing never depends on status. **PO confirmed** (question 4) |
