@@ -54,6 +54,12 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>3.2.0</version>
         </dependency>
+        <!-- Jackson 2, next to Boot 4's Jackson 3, only to read request bodies exactly as 2.7 did: its parse errors are
+             part of the error bodies clients see (specs/spring-boot-4/spec.md R12a, LegacyErrorBodies). -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
