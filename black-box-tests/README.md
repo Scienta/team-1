@@ -15,6 +15,7 @@ Agent rule when the API changes: [`.claude/rules/black-box-api.md`](../.claude/r
 | `co-speakers` | Order, idempotent add, max 2, main-as-co 400, remove-missing 404, quota |
 | `acceptance` | Full state table, 2 distinct reviewers to accept, main-speaker-only withdraw 403, D1-D13 codes, idempotent repeats, concurrent decisions |
 | `workshop-registration` | Accepted workshops only, 404 for non-workshops, 20 seats under a parallel rush, one per email (case/space-insensitive, also in parallel), list order, withdrawn keeps its list, D1-D19 codes |
+| `scheduling` | Programme put/get/delete, venue times, ACCEPTED-only, workshop→S4, occupancy/once, speaker clashes, R7 leave-in-place, concurrent cell/slot races |
 
 Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 
@@ -58,4 +59,5 @@ check required in branch protection if it should gate merges.
 
 - Re-runnable via unique emails/ids (no DB truncate). Local Compose DB will grow.
 - Factories + optional `seedBaseline()` for read-only cases; prefer helpers over duplicated fetch/assert.
+- Vitest runs **one suite file at a time** (`maxWorkers: 1`) so concurrent in-test cases don’t starve the 5-connection pool.
 - On API change: add or adjust suites here and update `decisions.md` when needed.
