@@ -1,60 +1,73 @@
 # Spring Boot 4 upgrade: D12 evidence
 
-Spec: `specs/spring-boot-4/spec.md` (D12). Collected 2026-11-06 on a developer machine.
+Spec: `specs/spring-boot-4/spec.md` (D12, R12a). Collected 2026-11-06 on a developer machine.
 
 ## How
 
-- **Before:** the Docker image built from `015861e` (Spring Boot 2.7.18, `eclipse-temurin:11-jre`, the image production
-  ran), against a fresh `postgres:16-alpine` database.
+- **Before:** the Docker image built from `297f7d6` (origin/main with acceptance: Spring Boot 2.7.18,
+  `eclipse-temurin:11-jre`, what production runs), against a fresh `postgres:16-alpine` database.
 - **After:** the Docker image built from this branch (`docker build --platform linux/amd64`; Spring Boot 4.1.2,
   `eclipse-temurin:25-jre`), against a freshly recreated database in the same Postgres container.
-- Both run with `PGHOST=<postgres container> PGSSLMODE=disable` on port 8080. The script below ran against each (96
-  requests: every base endpoint, an unrated and a rated talk, co-speakers, every error case of R9-R11, `/health`,
-  `/actuator/*`, `/admin/*`, `/openapi.yaml`, `/swagger-ui.html`, framework 404/405/415, and since review #2 a
-  trailing-slash variant of every endpoint). It prints status,
+- Both run with `PGHOST=<postgres container> PGSSLMODE=disable` on port 8080. The script below ran against each (122
+  requests: every base endpoint, an unrated and a rated talk, co-speakers, acceptance (accept, reject, waitlist,
+  withdraw, rejected transitions), every error case of R9-R12a incl. framework-written ones (type conversion,
+  malformed JSON, missing body or parameter, 404/405/415, `@Valid`), `/health`, `/actuator/*`, `/admin/*`,
+  `/openapi.yaml`, `/swagger-ui.html`, and a trailing-slash variant of every endpoint). It prints status,
   Content-Type, redirect and body per request; only `timestamp`, `submittedAt`, `ratedAtDisplay` and `generated`
-  values are masked (ids are deterministic on a fresh database; dates are compared as is, same day). Then
-  `diff before.txt after.txt`.
+  values are masked. Then `diff before.txt after.txt`. Workshops (merged later) aren't in the script; their own
+  suites cover them.
 
 ## Result
 
-Status codes, Content-Types (incl. `charset=UTF-8` on errors), redirects, field names and order, and every
-success body are identical, including `submittedOn`, `averageRating: null`/`4.3`, `bio: null`, `ratedAtDisplay`'s
-shape, the trailing-slash URLs, JSON comments, unknown fields, `/admin/stats`, `/admin/talks.csv` (`6. nov. 2026`,
-D11), `/openapi.yaml` (same SHA-1) and `/swagger-ui.html` (302 to `/swagger-ui/index.html`). Every trailing-slash
-URL (`POST /talks/`, `GET /talks/1/`, `GET /talks/?sort=rating`, `PUT /talks/1/ratings/5/`, co-speakers, `/speakers/1/talks/`,
-`PUT /speakers/2/`, `/admin/*/`, `/health/`, `/actuator/info/`, `/actuator/health/`, `/openapi.yaml/`) answers as on 2.7.
+**3 lines differ; everything else is byte for byte identical**, error bodies included (R12a): status codes,
+Content-Types, redirects, field names and order, success bodies, framework-written `message` texts, `@Valid` `errors`,
+acceptance, CSV (`6. nov. 2026`, D11), `openapi.yaml`, swagger-ui and all trailing-slash URLs.
 
-15 lines differ (the second is the `/actuator/info/` request):
-
-| Request(s) | Difference | Verdict |
+| Request | Difference | Verdict |
 |---|---|---|
 | `GET /actuator/info`, `GET /actuator/info/` | `11.0.32.1 / 2.7.18 / 5.3.31` -> `25.0.5 / 4.1.2 / 7.0.10` | Expected (R3) |
-| `GET /speakers/abc`, `GET /talks/abc`, `PUT /talks/1/ratings/abc` (400) | `message` wording from Spring 7: `Method parameter 'id': Failed to convert ...; For input string: "abc"` instead of `Failed to convert ...; nested exception is java.lang.NumberFormatException: ...` | Not changed, see below |
-| Malformed JSON on `POST /speakers`, `POST /talks`, `PUT .../ratings/1`, `"speakerId":"x"` (400) | `message` from Jackson 3 without the `nested exception is ...` / `at [Source: ...]` tail (`JSON parse error: Unexpected end-of-input within/between Object entries`) | Not changed, see below |
-| `POST /speakers` with `text/plain` (415), `DELETE /talks` (405), `GET /nope` (404) | `message` wording: `Content-Type '...' is not supported.`, `Method 'DELETE' is not supported.`, `No static resource nope.` | Not changed, see below |
-| `@Valid` failures on `POST /speakers` (`{}`, blank name, 501-char bio) (400) | Same `message` and same `errors` content, but each error object's properties come in a different order (`objectName, field, rejectedValue` first), and for `{}` the two errors are listed name-then-email (Hibernate Validator's order isn't defined in either version) | Not changed, see below |
+| `POST /talks` with `{not json` | `column: 3` -> `column: 2` in the parse error's location | Not identical, below |
 
-Not changed: these are framework-generated, human-readable texts on rejected garbage input. The status codes and
-the `{timestamp, status, error, message, path}` shape with `message` filled in (R9, R12) are identical; reproducing
-Spring 5 / Jackson 2 exception texts would mean hand-writing framework internals. No spec rule pins them (D9).
+## Not identical (for the PO)
 
-Differences found and fixed during the comparison and the tests (each now pinned by a test):
+1. **The column in some Jackson parse errors.** Request bodies are read by Jackson 2 again (as on 2.7), but Jackson
+   2.21 (managed by Boot 4.1.2) reports some error positions one column differently from 2.7's Jackson 2.13:
+   - `POST /talks` body `{not json`: before `...
+ at [Source: (org.springframework.util.StreamUtils$NonClosingInputStream); line: 1, column: 3]`,
+     after `... line: 1, column: 2]`. Rest of the body identical.
+   - `PUT /speakers/1` body `nope`: before `column: 5`, after `column: 1` (in `LegacyErrorBodiesTest`, not the script).
 
-- `submittedAt` came out as `...Z`, `submittedOn` as a full timestamp: explicit formats on `TalkDto` (D4).
-- Property order became alphabetical: `spring.jackson.mapper.sort-properties-alphabetically=false` (D8).
-- `POST /speakers/`, `GET /speakers/{id}/` were 404: `UrlHandlerFilter` (D6), on every path since review #2, as
-  Spring 5 matched a trailing slash on every mapping (`GET /talks/1/` etc. were 404 too).
-- JSON comments rejected, `message` missing from error bodies: Boot 4 property names
-  (`spring.jackson.json.read.allow-java-comments`, `spring.web.error.*`; also `spring.servlet.encoding.force`, the
-  old `server.servlet.encoding.force` is an error-level deprecation in Boot 4).
-- Error `timestamp` became `...Z`: written as `yyyy-MM-dd'T'HH:mm:ss.SSS+00:00` again (`WebConfig.errorAttributes`).
-- Error responses lost `;charset=UTF-8`: UTF-8 forced on the error dispatch too (`WebConfig`).
-- `/actuator/health` gained `"groups":["liveness","readiness"]`: `management.endpoint.health.probes.enabled=false`.
+   Tried: Jackson 2.13.5 doesn't run with Spring 7 (`NoClassDefFoundError: com.fasterxml.jackson.databind.cfg.DatatypeFeature`);
+   2.14.3 and 2.15.4 match all columns, but are years out of support and below what Boot 4 manages. 2.17-2.20 still
+   differ on `{not json`. We kept Boot's 2.21.7 instead of pinning an unsupported parser on the request path. If the
+   PO needs the columns too, pinning `jackson-core`/`jackson-databind` 2.15.4 works (tested, 22/22) at that cost.
+2. **`@Valid` errors on more than one field were in a random order on 2.7.** Hibernate Validator returns a HashSet:
+   12 identical `POST /speakers {}` against the 2.7 image gave email-first 4 times and name-first 8 times. 4.x
+   now always lists them in `SpeakerForm`'s declaration order (name, email, bio), which is one of 2.7's answers, so
+   a diff line here depends on 2.7's luck in that run (none in the final run).
 
-`examples/run.sh` (Hurl 7 via `winget install Orange-OpenSource.Hurl`) passes against the 4.x image: 5 files, 40
-requests, including the new `examples/spring-boot-4.hurl`, which fails on the 2.7 image (versions 2.7.18 / 5.3.31 /
-11.0.32.1), as it should.
+## How it's made identical (`LegacyErrorBodies`)
+
+- Request bodies go through a read-only Jackson 2 converter configured as Boot 2.7's (unknown fields ignored, JSON
+  comments allowed, source in error locations), placed where 2.7 had its Jackson converter; responses are still
+  written by Boot 4's Jackson 3. `com.fasterxml.jackson.core:jackson-databind` (Boot-managed 2.21.7) is a dependency
+  again; the acceptance and workshop code from main already parses its text bodies with Jackson 2 and stays on it.
+- `message` rebuilt as Spring 5 wrote it for `TypeMismatchException`, `HttpMessageNotReadableException`
+  (Spring 5 appended `; nested exception is <cause>`), 415, 405, missing request parameter, unknown path.
+- `@Valid` `errors`: Spring 5's property order per error, the form's declaration order between errors.
+- Pinned by `LegacyErrorBodiesTest`: 22 requests, each sent 5 times, against bodies recorded from the 2.7 image
+  (`src/test/resources/spring-boot-4/error-bodies-2.7.txt`); the two column cases compare with the column masked.
+
+Differences found and fixed earlier (each pinned by a test): `submittedAt`/`submittedOn` formats (D4), alphabetical
+property order (D8), trailing slashes on every path (D6, review #2), Boot 4 property names (JSON comments, error
+`message`, encoding), error `timestamp` `+00:00`, `charset=UTF-8` on errors, `/actuator/health` probe groups.
+
+## Gates (this branch, after merging main with acceptance and workshop registration)
+
+- `./mvnw -B package` on Temurin 25.0.5: **153/153** green.
+- Black-box suite (`black-box-tests`, `npm test`) against the 4.x image: **7 files, 110 tests** green.
+- `examples/run.sh` (Hurl): **7 files, 170 requests** green; `examples/spring-boot-4.hurl` fails on the 2.7 image, as
+  it should.
 
 ## After merge (D12 (4), still open)
 
@@ -195,4 +208,32 @@ r GET /health/
 r GET /actuator/info/
 r GET /actuator/health/
 r GET /openapi.yaml/
+# acceptance (merged from main at fb2e37f)
+r PUT /talks/1/status '{"status":"ACCEPTED"}'
+r PUT /talks/3/status '{"status":"ACCEPTED"}'
+r PUT /talks/2/status '{"status":"WAITLISTED"}'
+r PUT /talks/2/status '{"status":"REJECTED"}'
+r PUT /talks/2/status '{"status":"ACCEPTED"}'
+r PUT /talks/1/status '{"status":"ACCEPTED"}'
+r PUT /talks/1/status/ '{"status":"ACCEPTED"}'
+r PUT /talks/1/status 'nope'
+r PUT /talks/1/status '{"status":"accepted"}'
+r PUT /talks/1/status
+r PUT /talks/987654321/status '{"status":"ACCEPTED"}'
+r POST /talks/4/withdraw '{"speakerId":2}'
+r POST /talks/4/withdraw '{"speakerId":"x"}'
+r POST /talks/4/withdraw '{"speakerId":1}'
+r POST /talks/4/withdraw '{"speakerId":1}'
+r POST /talks/2/withdraw '{"speakerId":2}'
+r GET /talks
+r GET /admin/stats
+r GET /admin/talks.csv
+# more framework-written errors (R12a)
+r POST /talks
+r PUT /talks/1/ratings/1
+r GET /speakers/search
+r GET '/talks?speakerId=abc'
+r POST /speakers '[1]'
+r PUT /talks/1/ratings/1 '[]'
+r POST /speakers '{"name":"Ok","email":"ok@example.com"} trailing'
 ```

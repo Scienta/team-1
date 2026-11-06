@@ -11,20 +11,25 @@ First feature run through `/feature` end to end: spec-writer → person approved
 - **`.java-version` (25)**: both workflows (`deploy.yml` tests job, `black-box.yml`) read it, so the Java version can't drift again.
 - `javax.*` → `jakarta.*` (`RequestLoggingFilter`, `SpeakerController`, `SpeakerForm`); `-parameters` compiler flag (D5).
 - `TalkDto`: `submittedAt`/`submittedOn` formatted explicitly (D4).
-- New `WebConfig`: trailing-slash URLs keep working on **every** path, as on 2.7 (D6, review #2); error `timestamp` `+00:00` and `charset=UTF-8` on error responses as before.
+- New `WebConfig`: trailing-slash URLs keep working on **every** path, as on 2.7 (D6, review #2); `charset=UTF-8` on error responses as before.
+- New `LegacyErrorBodies`: error bodies byte for byte as on 2.7 (R12a): Jackson 2 reads request bodies (`jackson-databind` 2.x is a dependency again), Spring 5 `message` texts, `@Valid` `errors` order, `timestamp` `+00:00`.
 - `application.properties`: Boot 4 property names; alphabetical JSON property sorting off (D8); JSON comments still allowed (D7).
 
 ### Proof that clients see no change
 
 | Evidence | Result |
 |---|---|
-| `./mvnw package` on Temurin 25.0.5 (implementer, and again by the reviewer) | **68/68** green; existing tests changed only mechanically (imports, Jackson 3 method names, Testcontainers 2 class) |
-| Before/after: same 96-request script against the 2.7 image (Java 11, as production) and the 4.x image, fresh DB each | Status codes, content types, every success body, field order, CSV, `openapi.yaml`, swagger-ui, all trailing-slash URLs **identical**; only `/actuator/info` versions differ, plus framework wording of `message` in 13 error bodies for garbage input (status and shape unchanged, D9) |
-| `examples/run.sh` (Hurl) against the 4.x image | 5 files, 40 requests green; `examples/spring-boot-4.hurl` fails on 2.7 (catches a missing upgrade) |
-| Black-box suite (`black-box-tests/`, Vitest) against the 4.x jar on Java 25 | **35/35** green |
+| `./mvnw package` on Temurin 25.0.5, after merging main (acceptance, its 409 fix, workshop registration) | **153/153** green; existing and merged tests changed only mechanically (imports, Jackson 3 method names, Testcontainers 2 class, `getStatusCode`) |
+| Before/after: same 122-request script against the 2.7 image (from main `297f7d6`, Java 11, as production) and the 4.x image, fresh DB each; covers base, co-speakers, acceptance, every framework-written error and trailing slashes | **3 lines differ**: `/actuator/info` versions (2, expected) and one Jackson parse-error column (see Open questions). Everything else byte for byte identical, error bodies included (R12a) |
+| `LegacyErrorBodiesTest`: 22 error responses x5 against bodies recorded from the 2.7 image | green (2 compared with the column masked) |
+| `examples/run.sh` (Hurl) against the 4.x image | 7 files, 170 requests green; `examples/spring-boot-4.hurl` fails on 2.7 (catches a missing upgrade) |
+| Black-box suite (`black-box-tests/`, Vitest) against the 4.x image | **110/110** green (7 files, incl. acceptance and workshop registration) |
 | `/actuator/info` locally | `java 25.0.5`, `springBoot 4.1.2`, `springFramework 7.0.10`, read from the runtime (pinned by `UpgradeInvariantsTest`, not hard-coded) |
 
-Rule → test mapping: `specs/spring-boot-4/evidence.md` and the spec (R1–R14, D1–D13).
+How the error bodies are made identical: `LegacyErrorBodies` (Jackson 2 reads request bodies as on 2.7, responses stay
+Jackson 3; Spring 5 `message` texts rebuilt; `@Valid` `errors` in Spring 5's order). Details: `evidence.md`.
+
+Rule → test mapping: `specs/spring-boot-4/evidence.md` and the spec (R1–R14, R12a, D1–D13, D9a).
 
 ### Review
 
@@ -36,7 +41,14 @@ Rule → test mapping: `specs/spring-boot-4/evidence.md` and the spec (R1–R14,
 
 ### Open questions for the product owner
 
-None needed by the request. FYI for the team: framework-written error `message` texts on malformed input changed wording (status codes and body shape unchanged).
+Error bodies now match 2.7 byte for byte (R12a), with two exceptions listed in `evidence.md` under "Not identical":
+
+1. **Column numbers in some JSON parse errors** (e.g. `{not json`: `column: 3` on 2.7, `column: 2` now). Jackson
+   2.21, which Boot 4 manages, counts differently from 2.7's 2.13. Pinning Jackson 2.15.4 matches it (tested), but
+   that version is out of support and older than what Boot 4 manages, so we didn't. PO: is the column acceptable,
+   or do we pin 2.15.4?
+2. **`@Valid` errors on several fields**: 2.7 listed them in a random order per request; we now always use the
+   form's field order (one of 2.7's answers). Nothing to decide unless the PO wants something else.
 
 ### Merge notes
 
