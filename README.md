@@ -103,9 +103,10 @@ cd black-box-tests && npm ci
 npm run test:local            # build/start jar → vitest → stop (or npm test if the app is already up)
 ```
 
-Use `CFP_BASE_URL` if you point at a non-default origin (not bare `BASE_URL`). CI runs on every PR via
-[`black-box.yml`](.github/workflows/black-box.yml) (see [workflows README](.github/workflows/README.md));
-mark that check required in branch protection. Agent rule: `.claude/rules/black-box-api.md` — review
+Use `CFP_BASE_URL` if you point at a non-default origin (not bare `BASE_URL`). CI runs on every PR and
+on **direct pushes to `main`** via [`black-box.yml`](.github/workflows/black-box.yml) (PR merges into
+`main` skip the push run — already covered on the PR; see [workflows README](.github/workflows/README.md)).
+Mark that check required in branch protection. Agent rule: `.claude/rules/black-box-api.md` — review
 and extend this suite on any API change.
 
 **Build and run locally.** Docker is needed for both: the tests start Postgres with

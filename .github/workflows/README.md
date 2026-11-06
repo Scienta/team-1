@@ -6,7 +6,7 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 | Workflow | File | When | Purpose |
 |----------|------|------|---------|
 | **deploy** | [`deploy.yml`](deploy.yml) | Push to `main`, or `workflow_dispatch` | Maven tests gate, then build/push image and roll out to Scaleway |
-| **black-box** | [`black-box.yml`](black-box.yml) | Pull request, or `workflow_dispatch` | Vitest HTTP suite against a job-local Postgres + jar |
+| **black-box** | [`black-box.yml`](black-box.yml) | Pull request, direct push to `main`, or `workflow_dispatch` | Vitest HTTP suite against a job-local Postgres + jar |
 | **logs** | [`logs.yml`](logs.yml) | `workflow_dispatch` only | Print container logs from Scaleway Cockpit |
 
 ## deploy
@@ -24,6 +24,9 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 - Deep HTTP tests in [`black-box-tests/`](../../black-box-tests/README.md) (TypeScript + Vitest).
 - Job starts Postgres 16 (`cfp`/`cfp`/`cfp`), builds the jar, starts it on `:8080`, runs
   `npm run test:ci` with `CFP_BASE_URL=http://localhost:8080`, then stops the jar.
+- **When:** every `pull_request`; `workflow_dispatch`; and **direct pushes to `main`**.
+  Merges into `main` from a PR are skipped on the push event (the suite already ran on the PR),
+  detected via the “pull requests associated with a commit” API.
 - Does **not** hit the deployed `TEAM_URL` and is **not** wired into `deploy.yml`.
 - To block merges, mark the **black-box** check required in branch protection.
 - On API changes, extend the suite per [`.claude/rules/black-box-api.md`](../../.claude/rules/black-box-api.md).

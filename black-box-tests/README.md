@@ -48,9 +48,10 @@ From repo root: `npm --prefix black-box-tests run test:local`.
 
 ## CI
 
-Workflow: [`.github/workflows/black-box.yml`](../.github/workflows/black-box.yml) on `pull_request` and
-`workflow_dispatch`. Job-local Postgres + jar; not wired into `deploy.yml`. Mark the **black-box**
-check required in branch protection if it should gate merges.
+Workflow: [`.github/workflows/black-box.yml`](../.github/workflows/black-box.yml) on `pull_request`,
+direct push to `main` (skips push when the commit came from a merged PR), and `workflow_dispatch`.
+Job-local Postgres + jar; not wired into `deploy.yml`. Mark the **black-box** check required in
+branch protection if it should gate merges. See [workflows README](../.github/workflows/README.md).
 
 ## Design notes
 
