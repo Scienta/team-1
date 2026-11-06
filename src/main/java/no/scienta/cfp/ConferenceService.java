@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -43,14 +44,17 @@ public class ConferenceService {
     private final RatingDao ratingDao;
     private final CoSpeakerDao coSpeakerDao;
     private final NotificationService notifications;
+    private final int maxTalksPerSpeaker;
 
     public ConferenceService(SpeakerDao speakerDao, TalkDao talkDao, RatingDao ratingDao, CoSpeakerDao coSpeakerDao,
-                             NotificationService notifications) {
+                             NotificationService notifications,
+                             @Value("${cfp.talks.max-per-speaker:3}") int maxTalksPerSpeaker) {
         this.speakerDao = speakerDao;
         this.talkDao = talkDao;
         this.ratingDao = ratingDao;
         this.coSpeakerDao = coSpeakerDao;
         this.notifications = notifications;
+        this.maxTalksPerSpeaker = maxTalksPerSpeaker;
     }
 
     // ---------------------------------------------------------------- speakers
@@ -147,7 +151,7 @@ public class ConferenceService {
 
         Long id = checkSubmissionLimit(form, duration);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most " + maxTalksPerSpeaker + " talks");
         }
         Map<String, Object> speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted((String) speaker.get("email"), form.title);
@@ -155,10 +159,10 @@ public class ConferenceService {
     }
 
     /**
-     * Checks that the speaker is below the limit of 3 talks.
+     * Checks that the speaker is below the limit of talks ({@code cfp.talks.max-per-speaker}, 3 by default).
      */
     private Long checkSubmissionLimit(TalkForm form, int duration) {
-        return talkDao.insertIfBelow(3, form.title, form.format, duration, form.level, form.speakerId,
+        return talkDao.insertIfBelow(maxTalksPerSpeaker, form.title, form.format, duration, form.level, form.speakerId,
                 System.currentTimeMillis());
     }
 
