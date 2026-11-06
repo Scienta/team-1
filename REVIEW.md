@@ -25,7 +25,7 @@ From harness request to claim we follow `workflow/spec-to-claim.md`:
 
 Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.claude/rules/` (including black-box API coverage).
 
-A pull request is ready only when both PR checks are green: `tests` (`.github/workflows/tests.yml`, `./mvnw -B package`) and `black-box` (`.github/workflows/black-box.yml`). The feature skill says the same (`.claude/skills/feature/SKILL.md`).
+A pull request is ready only when both PR checks are green: `tests` (`.github/workflows/tests.yml`, `./mvnw -B package`) and `black-box` (`.github/workflows/black-box.yml`). The feature skill says the same (`.claude/skills/feature/SKILL.md`). `black-box` also runs on every push to `main`; the deploy job does not wait for it.
 
 ## 2. How we reviewed agent output
 
@@ -163,7 +163,7 @@ DELETE the request gives no response for, 204 is the conventional reading.
 ## 5. Reusable artifacts
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage
-- `black-box-tests/` — Vitest HTTP suite + `decisions.md` + PR workflow `black-box.yml`
+- `black-box-tests/` — Vitest HTTP suite + `decisions.md` + `black-box.yml` (pull requests and push to `main`)
 - `.github/workflows/tests.yml` — PR-only Java build and tests (`./mvnw -B package`). With `black-box.yml`, both checks must be green before a PR is ready
 - `workflow/spec-to-claim.md` — end-to-end process
 - `workflow/review-checklist.md` — review rubric

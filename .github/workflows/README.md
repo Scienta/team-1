@@ -7,7 +7,7 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 |----------|------|------|---------|
 | **deploy** | [`deploy.yml`](deploy.yml) | Push to `main`, or `workflow_dispatch` | Maven tests gate, then build/push image and roll out to Scaleway |
 | **tests** | [`tests.yml`](tests.yml) | Pull request opened, updated, or reopened | `./mvnw -B package`: Java build and tests. A PR is ready only when this and **black-box** are both green |
-| **black-box** | [`black-box.yml`](black-box.yml) | Pull request, or `workflow_dispatch` | Vitest HTTP suite against a job-local Postgres + jar |
+| **black-box** | [`black-box.yml`](black-box.yml) | Pull request, push to `main`, or `workflow_dispatch` | Vitest HTTP suite against a job-local Postgres + jar |
 | **logs** | [`logs.yml`](logs.yml) | `workflow_dispatch` only | Print container logs from Scaleway Cockpit |
 
 ## deploy
@@ -32,7 +32,7 @@ changed. Helpers under `.github/fagdag/` (`rollout.sh`, `logs.sh`) are used by t
 - Deep HTTP tests in [`black-box-tests/`](../../black-box-tests/README.md) (TypeScript + Vitest).
 - Job starts Postgres 16 (`cfp`/`cfp`/`cfp`), builds the jar, starts it on `:8080`, runs
   `npm run test:ci` with `CFP_BASE_URL=http://localhost:8080`, then stops the jar.
-- Does **not** hit the deployed `TEAM_URL` and is **not** wired into `deploy.yml`.
+- Also runs on a push to `main`, alongside the deploy build. It does **not** hit the deployed `TEAM_URL`, and `deploy` does not wait for it.
 - To block merges, mark the **black-box** check required in branch protection.
 - On API changes, extend the suite per [`.claude/rules/black-box-api.md`](../../.claude/rules/black-box-api.md).
 
