@@ -192,6 +192,10 @@ PUT {{base_url}}/talks/{{a_id}}/status
 { "status": "WAITLISTED" }
 HTTP 409
 
+PUT {{base_url}}/talks/{{a_id}}/status
+{ "status": "REJECTED" }
+HTTP 409
+
 # D12: a stranger gets 403 whatever the state
 POST {{base_url}}/talks/{{a_id}}/withdraw
 { "speakerId": {{stranger_id}} }
@@ -242,6 +246,29 @@ c_id: jsonpath "$.id"
 
 POST {{base_url}}/talks/{{c_id}}/withdraw
 { "speakerId": {{main_id}} }
+HTTP 200
+[Asserts]
+jsonpath "$.status" == "WITHDRAWN"
+
+# Talk E (the co-speaker's own): withdrawn from WAITLISTED
+POST {{base_url}}/talks
+{ "title": "Talk E", "format": "LIGHTNING_20", "level": "BEGINNER", "speakerId": {{co_id}} }
+HTTP 201
+[Captures]
+e_id: jsonpath "$.id"
+
+PUT {{base_url}}/talks/{{e_id}}/status
+{ "status": "WAITLISTED" }
+HTTP 200
+[Asserts]
+jsonpath "$.status" == "WAITLISTED"
+
+# D3: withdraw with no body
+POST {{base_url}}/talks/{{e_id}}/withdraw
+HTTP 400
+
+POST {{base_url}}/talks/{{e_id}}/withdraw
+{ "speakerId": {{co_id}} }
 HTTP 200
 [Asserts]
 jsonpath "$.status" == "WITHDRAWN"
