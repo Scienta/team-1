@@ -25,11 +25,14 @@ From harness request to claim we follow `workflow/spec-to-claim.md`:
 
 Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.claude/rules/` (including black-box API coverage).
 
+A pull request is ready only when both PR checks are green: `tests` (`.github/workflows/tests.yml`, `./mvnw -B package`) and `black-box` (`.github/workflows/black-box.yml`). The feature skill says the same (`.claude/skills/feature/SKILL.md`).
+
 ## 2. How we reviewed agent output
 
 - Humans run `workflow/review-checklist.md` against the harness request plus our decisions file
 - Automated gates: `./mvnw package` (Testcontainers), `examples/run.sh` against the deployed URL,
-  Vitest black-box on PRs (`.github/workflows/black-box.yml`), harness `/feedback` and timeline for FAULTY checks
+  on PRs both `tests` (`.github/workflows/tests.yml`, Java build and tests) and `black-box`
+  (`.github/workflows/black-box.yml`) must be green before the PR is ready, harness `/feedback` and timeline for FAULTY checks
 - Deploy workflow must stay green (`/health` with new `GIT_SHA`)
 - Test review against the base specs, rule by rule, while all harness checks were green: ratings had
   no tests at all (`RatingsTest` is new), and `SpeakersTest`/`TalksTest` now cover their specs; a
@@ -140,6 +143,7 @@ together with D7.
 
 - `.claude/rules/black-box-api.md` — on any API change, review/extend Vitest black-box coverage
 - `black-box-tests/` — Vitest HTTP suite + `decisions.md` + PR workflow `black-box.yml`
+- `.github/workflows/tests.yml` — PR-only Java build and tests (`./mvnw -B package`). With `black-box.yml`, both checks must be green before a PR is ready
 - `workflow/spec-to-claim.md` — end-to-end process
 - `workflow/review-checklist.md` — review rubric
 - `workflow/templates/decisions.md` — turn a feature request into a real spec
