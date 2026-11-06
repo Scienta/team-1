@@ -1,7 +1,7 @@
 # Acceptance state machine: our spec
 
 Feature request: `specs/acceptance/request.md` (harness slug `acceptance`, V 2, released at tick 20).
-Status: PO questions asked (2 of 4 answered)
+Status: PO questions asked (3 answered, 1 open)
 
 ## Rules (from the feature request)
 
@@ -26,8 +26,8 @@ State table (rows: current status, columns: request). ✔ = 200 and the new stat
 |-------------|-----------------|----------|------------|----------|
 | SUBMITTED   | ✔ if ≥2 reviewers | ✔      | ✔          | ✔        |
 | WAITLISTED  | ✔ if ≥2 reviewers | ✔      | ✔ no change (D6) | ✔        |
-| ACCEPTED    | ✘               | ✘        | ✘          | ✔        |
-| REJECTED    | ✘               | ✘        | ✘          | ✘        |
+| ACCEPTED    | ✔ no change (D7) | ✘       | ✘          | ✔        |
+| REJECTED    | ✘               | ✔ no change (D7) | ✘  | ✘        |
 | WITHDRAWN   | ✘               | ✘        | ✘          | ✘        |
 
 ## API
@@ -55,7 +55,7 @@ both green on the harness).
 | D4 | decision not allowed from the current status (✘ in the table) | 409 | the talk's state refuses it, like the 3-talk limit |
 | D5 | `ACCEPTED` with fewer than 2 distinct reviewers | 409 | state-dependent (more ratings make it pass), like D4 |
 | D6 | `WAITLISTED` on a talk that is already `WAITLISTED` | 200, unchanged (idempotent) | **PO confirmed** (question 2) |
-| D7 | the same final decision again (`ACCEPTED` → `ACCEPTED`) | 409 | "the decision is final"; any decision on a final talk is refused |
+| D7 | the same final decision again (`ACCEPTED` → `ACCEPTED`, `REJECTED` → `REJECTED`) | 200, unchanged (idempotent); no ratings check for an already accepted talk | **PO confirmed** (question 5). A *different* decision on a final talk stays 409 (D4) |
 | D8 | withdraw: `speakerId` missing, null or not an integer | 400 | invalid request |
 | D9 | withdraw: `speakerId` is a registered speaker who isn't the talk's main speaker (including a co-speaker) | 403 | "nobody else can withdraw it": who asks, not the talk's state. A co-speaker is "somebody else": **PO question 1, answered** |
 | D10 | withdraw: `speakerId` isn't a registered speaker | 403 | also "somebody else"; we don't reveal which ids exist |
@@ -101,4 +101,8 @@ Ranked by how likely a wrong guess fails a harness check. Answers go here, with 
 2. Is waitlisting an already waitlisted talk allowed (no change) or refused?
    **Answered (PO, relayed by a team member, 2026-11-06): it's idempotent: 200, no change.** D6.
 3. Does a withdrawn or rejected talk still count towards the speaker's limit of 3 talks? (We say yes.)
-4. Can a talk still be rated after it's been decided or withdrawn? (We say yes, nothing changes for ratings.)
+4. Can a talk still be rated after it's been decided or withdrawn? Not asked: the request doesn't touch ratings,
+   so ratings keep working as today.
+5. Is repeating a final decision (`ACCEPTED` again, `REJECTED` again) idempotent or refused?
+   **Answered (PO, relayed by a team member, 2026-11-06): idempotent: 200, no change.** D7. Withdrawing twice
+   stays refused (409): the request says a talk can't be withdrawn once "already ... withdrawn".
