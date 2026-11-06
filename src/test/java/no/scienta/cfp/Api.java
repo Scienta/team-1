@@ -33,6 +33,22 @@ final class Api {
         return send("GET", path, null);
     }
 
+    /** A GET with the given Accept header. */
+    HttpResponse<String> get(String path, String accept) {
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Accept", accept)
+                .GET()
+                .build();
+        try {
+            return http.send(req, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     HttpResponse<String> post(String path, String json) {
         return send("POST", path, json);
     }
