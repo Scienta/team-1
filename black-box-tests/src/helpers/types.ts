@@ -56,6 +56,21 @@ export type ProgrammeEntry = {
   talkId: number;
 };
 
+/** One row of GET /programme (programme-export R4). Field order is the JSON order. */
+export type ProgrammeRow = {
+  slot: Slot;
+  start: string;
+  end: string;
+  room: Room;
+  talkId: number;
+  title: string;
+  format: TalkFormat;
+  speakers: string[];
+};
+
+export const ROOMS: Room[] = ["R1", "R2", "R3"];
+export const SLOTS: Slot[] = ["S1", "S2", "S3", "S4", "S5"];
+
 /** Fixed venue times from specs/scheduling (R1). */
 export const SLOT_TIMES: Record<Slot, { start: string; end: string }> = {
   S1: { start: "09:00", end: "10:00" },

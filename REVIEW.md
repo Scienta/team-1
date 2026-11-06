@@ -58,6 +58,12 @@ Root `CLAUDE.md` only imports organisers' `AGENTS.md`; team rules live under `.c
   An independent review agent then found that a tab or line break around an email slipped past the
   duplicate check (Postgres `trim()` strips only spaces), against D9's "surrounding whitespace ignored".
   We fixed it with a test that failed first; triage of all three findings is in `specs/workshop-registration/review.md`.
+- programme-export (`feat/programme-export`): every rule and decision row in `specs/programme-export/spec.md`
+  has a named test in `ProgrammeExportTest` (23 tests, written first and seen failing with 404, incl.
+  exports racing parallel scheduling PUT/DELETE). Also `examples/programme-export.hurl` (18 requests) and
+  `black-box-tests/src/suites/programme-export.test.ts` (20 tests), both green against a local jar on a
+  Compose database that already held data; the whole Vitest suite (152 tests) ran green in a `node:22-alpine`
+  container, since Node isn't installed on the dev machine. Not yet checked against the deployed service or the harness.
 
 ## 3. Claim log
 

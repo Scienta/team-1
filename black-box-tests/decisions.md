@@ -55,5 +55,17 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Scheduling: successful `DELETE` | `200` with removed `Entry` (`room`, `slot`, `start`, `end`, `talkId`) |
 | Scheduling: order of `PUT` checks | `404` room/slot → `400` body → `404` talk → `409` status → fit → already-elsewhere → occupied → speaker clash |
 | Scheduling: withdraw / late co-speakers after place | programme `Entry` stays until `DELETE` |
+| Programme export: empty programme | `GET /programme` `200 []`; `GET /programme.csv` `200`, header line only |
+| Programme export: row order | slot `S1`..`S5`, then room `R1`, `R2`, `R3`; same in JSON and CSV |
+| Programme export: talk withdrawn / rejected after scheduling | still a row, current title/format/speakers, no status field |
+| Programme export: speaker renamed, co-speaker added/removed after scheduling | row shows the current names (looked up at export time) |
+| Programme export: co-speaker removed and re-added | goes to the end of `speakers` |
+| Programme export: same name twice | both listed |
+| Programme export: CSV quoting | only for `,` `"` `\n` `\r` (quotes doubled); `;` and leading/trailing spaces unquoted; `\r\n` inside a title kept as is |
+| Programme export: CSV `Content-Type` | `text/csv;charset=UTF-8` under any `Accept` (incl. `application/json`); never `406` |
+| Programme export: `/programme` with `Accept: text/csv` or other | `200` JSON; never `406` |
+| Programme export: query parameters | ignored |
+| Programme export: `POST`/`PUT`/`DELETE` on `/programme` or `/programme.csv` | `405` |
+| Programme export: `HEAD` | `200`, no body |
 
-Trailing slash: `POST /speakers/`, `GET /speakers/{id}/`, and `/programme/{room}/{slot}/` work like the slash-free forms.
+Trailing slash: `POST /speakers/`, `GET /speakers/{id}/`, `/programme/` and `/programme/{room}/{slot}/` work like the slash-free forms.
