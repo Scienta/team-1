@@ -1,7 +1,7 @@
 import { expectJson, expectStatus } from "./expect.js";
 import { del, get, post, put } from "./http.js";
 import { uniqueEmail, uniqueName, uniqueReviewerId } from "./ids.js";
-import type { Rating, Speaker, Talk, TalkFormat, TalkLevel } from "./types.js";
+import type { Decision, Rating, Speaker, Talk, TalkFormat, TalkLevel } from "./types.js";
 
 export type NewSpeakerInput = {
   name?: string;
@@ -95,6 +95,34 @@ export async function putCoSpeakerRaw(talkId: number, speakerId: number) {
 
 export async function deleteCoSpeakerRaw(talkId: number, speakerId: number) {
   return del(`/talks/${talkId}/co-speakers/${speakerId}`);
+}
+
+/** Committee decision (acceptance). Expects 200 and returns the talk. */
+export async function decideTalk(talkId: number, status: Decision): Promise<Talk> {
+  return expectJson(await put<Talk>(`/talks/${talkId}/status`, { status }), 200);
+}
+
+/** PUT /talks/{id}/status with any body (a string is sent verbatim; undefined sends no body). */
+export async function decideTalkRaw(talkId: number, body?: unknown) {
+  return put<Talk>(`/talks/${talkId}/status`, body);
+}
+
+/** Withdrawal by a speaker (acceptance). Expects 200 and returns the talk. */
+export async function withdrawTalk(talkId: number, speakerId: number): Promise<Talk> {
+  return expectJson(await post<Talk>(`/talks/${talkId}/withdraw`, { speakerId }), 200);
+}
+
+/** POST /talks/{id}/withdraw with any body (a string is sent verbatim; undefined sends no body). */
+export async function withdrawTalkRaw(talkId: number, body?: unknown) {
+  return post<Talk>(`/talks/${talkId}/withdraw`, body);
+}
+
+/** A talk rated by two different reviewers, so it can be accepted (acceptance R3). */
+export async function createAcceptableTalk(speakerId: number): Promise<Talk> {
+  const talk = await createTalk({ speakerId });
+  await rateTalk(talk.id, 4);
+  await rateTalk(talk.id, 5);
+  return getTalk(talk.id);
 }
 
 export { expectStatus };

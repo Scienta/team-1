@@ -2,7 +2,12 @@ package no.scienta.cfp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +29,7 @@ class ConferenceServiceTest {
         talkDao = mock(TalkDao.class);
         ratingDao = mock(RatingDao.class);
         service = new ConferenceService(speakerDao, talkDao, ratingDao, mock(CoSpeakerDao.class),
-                mock(NotificationService.class));
+                mock(NotificationService.class), 3);
     }
 
     @Test
@@ -48,6 +53,19 @@ class ConferenceServiceTest {
         when(speakerDao.exists(7L)).thenReturn(false);
         ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form()));
         assertEquals(HttpStatus.BAD_REQUEST, e.getStatusCode());
+    }
+
+    @Test
+    void theTalkLimitComesFromConfiguration() {
+        service = new ConferenceService(speakerDao, talkDao, ratingDao, mock(CoSpeakerDao.class),
+                mock(NotificationService.class), 5);
+        when(speakerDao.exists(7L)).thenReturn(true);
+        when(talkDao.insertIfBelow(eq(5), anyString(), anyString(), anyInt(), anyString(), anyLong(), anyLong()))
+                .thenReturn(null);
+        ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.submitTalk(form()));
+        verify(talkDao).insertIfBelow(eq(5), anyString(), anyString(), anyInt(), anyString(), anyLong(), anyLong());
+        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals("a speaker can submit at most 5 talks", e.getReason());
     }
 
     @Test

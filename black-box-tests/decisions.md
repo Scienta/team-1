@@ -20,5 +20,16 @@ Harness base specs leave status codes and some edges open. These are the behavio
 | Re-add existing co-speaker | `200`, list unchanged |
 | Remove non-co-speaker / remove twice | `404` (not 200 — harness check-1) |
 | Unknown talk or speaker on co-speaker routes | `404` |
+| Acceptance: unknown talk on `PUT /talks/{id}/status` or `POST /talks/{id}/withdraw` (even with a bad body) | `404` |
+| Acceptance: `status` missing, null, not a string, unknown, not all caps, or `SUBMITTED`/`WITHDRAWN` | `400` |
+| Acceptance: body missing, not JSON, or not a JSON object | `400` |
+| Acceptance: decision not allowed from the current status (ACCEPTED/REJECTED/WITHDRAWN are final) | `409` |
+| Acceptance: `ACCEPTED` with fewer than 2 distinct reviewers (a reviewer rating twice counts once) | `409` |
+| Acceptance: `WAITLISTED` on a waitlisted talk, or repeating a final decision (`ACCEPTED` again, `REJECTED` again) | `200`, unchanged (PO confirmed) |
+| Acceptance: withdraw `speakerId` missing, null or not a whole number (string, decimal, boolean) | `400` |
+| Acceptance: withdraw by anyone but the main speaker (another speaker, a co-speaker, an unregistered id) | `403`, whatever the talk's status |
+| Acceptance: withdraw a `REJECTED` or `WITHDRAWN` talk (by the main speaker) | `409` |
+| Acceptance: order of checks | `404` talk, then `400` body, then `403` who, then `409` state/ratings |
+| Acceptance: withdrawn and rejected talks still count towards the 3-talk limit | 4th talk `409` (PO confirmed) |
 
 Trailing slash: `POST /speakers/` and `GET /speakers/{id}/` work like the slash-free forms.

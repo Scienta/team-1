@@ -13,6 +13,7 @@ Agent rule when the API changes: [`.claude/rules/black-box-api.md`](../.claude/r
 | `talks` | Formats/durations/levels, timestamps, max 3 talks, listing, concurrency |
 | `ratings` | Scores, replace, rounding, `sort=rating` ties, unrated, concurrency |
 | `co-speakers` | Order, idempotent add, max 2, main-as-co 400, remove-missing 404, quota |
+| `acceptance` | Full state table, 2 distinct reviewers to accept, main-speaker-only withdraw 403, D1-D13 codes, idempotent repeats, concurrent decisions |
 
 Open status/edge choices we pin in tests: [`decisions.md`](./decisions.md).
 

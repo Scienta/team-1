@@ -61,6 +61,13 @@ public class TalkDao {
     }
 
     /**
+     * Sets the talk's status only if it still is {@code from}. Returns false if it changed meanwhile (or no such talk).
+     */
+    public boolean updateStatusIf(long id, String from, String to) {
+        return jdbc.update("UPDATE talk SET status = ? WHERE id = ? AND status = ?", to, id, from) == 1;
+    }
+
+    /**
      * Inserts the talk only if the speaker has fewer than {@code max} talks. Returns the new id, or null.
      * The speaker row is locked first so two submissions for the same speaker can't both see room under the limit.
      */
